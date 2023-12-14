@@ -17,15 +17,15 @@ export class Cookie implements CookieModel {
   priority?: boolean | string;
 
   constructor(private opts: Partial<CookieModel>) {
-    this.maxAge = opts.maxAge || undefined;
-    this.signed = opts.signed || false;
-    this.expires = opts.expires || null;
-    this.httpOnly = opts.httpOnly || true;
-    this.path = opts.path || "/";
-    this.domain = opts.domain;
-    this.secure = opts.secure || false;
-    this.encode = opts.encode || encodeURIComponent;
-    this.sameSite = opts.sameSite || false;
+    this.maxAge = this.opts.maxAge || undefined;
+    this.signed = this.opts.signed || false;
+    this.expires = this.opts.expires || null;
+    this.httpOnly = this.opts.httpOnly || true;
+    this.path = this.opts.path || "/";
+    this.domain = this.opts.domain;
+    this.secure = this.opts.secure || false;
+    this.encode = this.opts.encode || encodeURIComponent;
+    this.sameSite = this.opts.sameSite || false;
 
     if (!this.originalMaxAge) this.originalMaxAge = this.maxAge;
   }
