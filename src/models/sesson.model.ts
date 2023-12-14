@@ -1,11 +1,11 @@
-import { NextFunction, Request, Response } from "express";
-import { CookieOptionsModel } from "./cookie.model";
+import { Request } from "express";
+import { CookieModel } from "./cookie.model";
 import { StoreModel } from "./store.model";
 
 export type UnsetType = "destroy" | "keep";
 
 export interface SessionOptionsModel {
-  cookie: any;
+  cookie: CookieModel;
   genid: (req: Request) => string | Promise<string>;
   name: string;
   proxy: boolean;
@@ -17,32 +17,27 @@ export interface SessionOptionsModel {
   unset: UnsetType;
 }
 
-export interface SessionModel {
-  options: SessionOptionsModel;
-  session: (req: Request, res: Response, next: NextFunction) => void;
+export interface SessionDataModel {
+  [propertyName: string]: string | number | boolean | object;
 }
 
-export interface SessionDataModel {
+export interface SessionModel extends SessionDataModel {
   id: string;
-  cookie: CookieOptionsModel;
-  [propertyName: string]: string | number | boolean | object;
+  cookie: CookieModel;
   touch: () => void;
   save: () => void;
   resetMaxAge: () => void;
   reload: () => void;
   regenerate: () => void;
+  destroy: () => void;
 }
-
-// export interface SessionRequestModel extends Request {
-//   sessionId: string;
-//   session: SessionDataModel;
-// }
 
 declare global {
   namespace Express {
     export interface Request {
       sessionId: string;
-      session: SessionDataModel;
+      session: SessionModel;
+      sessionStore: StoreModel;
     }
   }
 }

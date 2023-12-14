@@ -1,20 +1,23 @@
-import { CookieOptionsModel } from "../models";
-import * as cookie from "cookie";
+import { CookieModel, SameSiteType, SecureType } from "../models";
+import { serialize } from "../util";
 
-export class Cookie implements CookieOptionsModel {
-  originalMaxAge?: number;
+export class Cookie implements CookieModel {
+  originalMaxAge?: number | null;
   maxAge?: number;
   signed?: boolean;
   expires?: Date | null;
   httpOnly?: boolean;
   path?: string;
   domain?: string;
-  secure?: boolean | "auto";
+  secure?: SecureType;
   encode?: (val: string) => string;
-  sameSite?: boolean | "lax" | "strict" | "none";
+  decode?: (val: string) => string;
+  sameSite?: SameSiteType;
+  partitioned?: boolean;
+  priority?: boolean | string;
 
-  constructor(private opts: Partial<CookieOptionsModel>) {
-    this.maxAge = opts.maxAge;
+  constructor(private opts: Partial<CookieModel>) {
+    this.maxAge = opts.maxAge || undefined;
     this.signed = opts.signed || false;
     this.expires = opts.expires || null;
     this.httpOnly = opts.httpOnly || true;
@@ -32,8 +35,8 @@ export class Cookie implements CookieOptionsModel {
     this.originalMaxAge = this.maxAge;
   }
 
-  set maxage(ms: number) {
-    this.expires = new Date(Date.now() + ms);
+  set maxage(milliseconds: number) {
+    this.expires = new Date(Date.now() + milliseconds);
     this.originalMaxAge = this.maxAge;
   }
 
@@ -56,14 +59,6 @@ export class Cookie implements CookieOptionsModel {
   }
 
   serialize(name: string, val: string) {
-    return cookie.serialize(
-      name,
-      val,
-      this.data as cookie.CookieSerializeOptions
-    );
-  }
-
-  toJSON() {
-    return this.data;
+    return serialize(name, val, this.data);
   }
 }
