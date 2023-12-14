@@ -1,10 +1,15 @@
 import { Request } from "express";
-import { CookieModel, SessionModel, StoreModel } from "../models";
+import {
+  CookieModel,
+  SessionDataModel,
+  SessionModel,
+  StoreModel,
+} from "../models";
 import { uuid } from "../util";
 import { Session } from "./session";
 import { Cookie } from "./cookie";
 
-export class Store implements Partial<StoreModel> {
+export class Store implements StoreModel {
   constructor(
     private genid?: (req: Request) => string | Promise<string>,
     private cookieOptions: Partial<CookieModel> = {}
@@ -33,6 +38,17 @@ export class Store implements Partial<StoreModel> {
     );
 
     return new Session({} as Request);
+  }
+  /**
+   * PLACEHOLDER METHOD
+   * This method is a placeholder method so that TypeScript doesn't complain
+   * about calling destroy from other functions
+   */ set(sid: string, session: SessionDataModel): void {
+    console.log(
+      "This is a placeholder method. Please make sure you implement a set method in your store",
+      sid,
+      session
+    );
   }
 
   async generate(req: Request): Promise<void> {
@@ -78,14 +94,13 @@ export class Store implements Partial<StoreModel> {
       });
 
     if (existingSession) {
-      this.createSession({} as Request, existingSession);
+      this.createSession({ sessionId: sid } as Request, existingSession);
     } else
       throw new Error(
         `Session with ID ${sid} not found, could not load session`
       );
   }
-  createSession(req: Request, session: SessionModel) {
-    console.log("CREATE SESSION: ", req, session);
-    return session;
+  createSession(req: Request, sessionData: SessionDataModel) {
+    return new Session(req, sessionData);
   }
 }
