@@ -1,7 +1,7 @@
 export type SameSiteType = boolean | "lax" | "strict" | "none";
 export type SecureType = boolean | "auto";
 
-export interface CookieModel {
+export interface CookieDataModel {
   originalMaxAge?: number | null;
   maxAge?: number | null;
   signed?: boolean;
@@ -10,9 +10,12 @@ export interface CookieModel {
   path?: string;
   domain?: string;
   secure?: SecureType;
-  encode?: (val: string) => string;
-  decode?: (val: string) => string;
   sameSite?: SameSiteType;
   partitioned?: boolean;
   priority?: boolean | string;
+}
+
+export interface CookieModel extends CookieDataModel {
+  encode?: (val: string) => string;
+  decode?: (val: string) => string;
 }
