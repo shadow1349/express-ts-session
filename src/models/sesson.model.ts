@@ -1,5 +1,5 @@
 import { Request } from "express";
-import { CookieModel } from "./cookie.model";
+import { CookieDataModel, CookieModel } from "./cookie.model";
 import { StoreModel } from "./store.model";
 
 export type UnsetType = "destroy" | "keep";
@@ -15,21 +15,20 @@ export interface SessionOptionsModel {
   secret: string | string[];
   store: StoreModel;
   unset: UnsetType;
+  session: SessionModel;
 }
 
 export interface SessionDataModel {
-  [propertyName: string]: string | number | boolean | object;
+  [propertyName: string]: string | number | boolean | object | CookieDataModel;
 }
 
 export interface SessionModel extends SessionDataModel {
-  id: string;
-  cookie: CookieModel;
   touch: () => void;
-  save: () => void;
+  save: () => void | Promise<void>;
   resetMaxAge: () => void;
-  reload: () => void;
-  regenerate: () => void;
-  destroy: () => void;
+  reload: () => void | Promise<void>;
+  regenerate: () => void | Promise<void>;
+  destroy: () => void | Promise<void>;
 }
 
 declare global {
