@@ -5,6 +5,9 @@ import {
   SessionModel,
   StoreModel,
 } from "../models";
+import { uuid } from "../util";
+import { Cookie } from "./cookie";
+import { Store } from "./store";
 
 export class Session implements SessionModel {
   id: string;
@@ -15,12 +18,11 @@ export class Session implements SessionModel {
 
   constructor(private req: Request, private data: SessionDataModel = {}) {
     this.id = this.req.sessionId;
-    this.cookie = req.session.cookie;
 
-    if (!this.req.sessionStore)
-      throw new TypeError(
-        "Session store is not defined on the request object."
-      );
+    if (this.data.cookie) this.cookie = this.data.cookie as CookieModel;
+    else this.cookie = new Cookie({});
+
+    if (!this.req.sessionStore) this.req.sessionStore = new Store(() => uuid());
 
     this.sessionStore = this.req.sessionStore;
 
