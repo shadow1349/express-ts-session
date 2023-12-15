@@ -52,11 +52,23 @@ export class Session implements SessionModel {
     this.sessionStore.set(this.id, this.sessionData);
   }
 
-  regenerate() {}
+  async regenerate() {
+    await this.req.sessionStore.regenerate(this.req);
+  }
 
-  destroy() {}
+  async destroy() {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    delete this.req.session;
+    await this.sessionStore.destroy(this.id);
+  }
 
-  reload() {}
+  async reload() {
+    const existing = await this.sessionStore.get(this.id);
+
+    if (existing && this.sessionStore.createSession)
+      await this.sessionStore?.createSession(this.req, existing);
+  }
 
   data(): SessionDataModel {
     const keys = Object.keys(this);
