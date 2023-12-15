@@ -9,14 +9,16 @@ export interface CookieDataModel {
   /**
    * Indicates the number of seconds until the cookie expires. A zero or negative number will
    * expire the cookie immediately. If both Expires and Max-Age are set, Max-Age has precedence.
+   *
+   * @default 9000
    */
   maxAge?: number | null;
   signed?: boolean;
   /**
-   * Indicates the maximum lifetime of the cookie as an HTTP-date timestamp. See Date for the required formatting. 
+   * Indicates the maximum lifetime of the cookie as an HTTP-date timestamp. See Date for the required formatting.
    * If unspecified, the cookie becomes a session cookie. A session finishes when the client shuts down, after which the session cookie is removed.
    * When an Expires date is set, the deadline is relative to the client the cookie is being set on, not the server.
-   * 
+   *
    * WARNING: Many web browsers have a session restore feature that will save all tabs and restore them the next time the browser is used.
    * Session cookies will also be restored, as if the browser was never closed.
    */
