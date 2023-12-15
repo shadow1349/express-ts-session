@@ -1,13 +1,8 @@
 import { Request } from "express";
-import {
-  CookieModel,
-  SessionDataModel,
-  SessionModel,
-  StoreModel,
-} from "../models";
+import { CookieModel, SessionDataModel, StoreModel } from "../models";
 import { uuid } from "../util";
-import { Session } from "./session";
 import { Cookie } from "./cookie";
+import { Session } from "./session";
 
 export class Store implements StoreModel {
   constructor(
@@ -31,23 +26,24 @@ export class Store implements StoreModel {
    * This method is a placeholder method so that TypeScript doesn't complain
    * about calling destroy from other functions
    */
-  get(sid: string): SessionModel | Promise<SessionModel> {
+  get(sid: string): SessionDataModel | Promise<SessionDataModel> {
     console.log(
       "This is a placeholder method. Please make sure you implement a get method in your store",
       sid
     );
 
-    return new Session({} as Request);
+    return {};
   }
   /**
    * PLACEHOLDER METHOD
    * This method is a placeholder method so that TypeScript doesn't complain
    * about calling destroy from other functions
-   */ set(sid: string, session: SessionDataModel): void {
+   */
+  set(sid: string, data: SessionDataModel): void {
     console.log(
       "This is a placeholder method. Please make sure you implement a set method in your store",
       sid,
-      session
+      data
     );
   }
 
@@ -64,10 +60,6 @@ export class Store implements StoreModel {
 
     req.session = new Session(req);
     req.session.cookie = new Cookie(this.cookieOptions || {});
-
-    // if (this.cookieOptions.secure === "auto") {
-    //   req.session.cookie.secure = issecure(req, trustProxy);
-    // }
   }
 
   async regenerate(req: Request) {
@@ -81,11 +73,6 @@ export class Store implements StoreModel {
   }
 
   async load(sid: string) {
-    console.log(
-      "This is a placeholder method. Please make sure you implement a load method in your store",
-      sid
-    );
-
     let existingSession = this.get(sid);
 
     if (existingSession instanceof Promise)
@@ -100,7 +87,20 @@ export class Store implements StoreModel {
         `Session with ID ${sid} not found, could not load session`
       );
   }
-  createSession(req: Request, sessionData: SessionDataModel) {
-    return new Session(req, sessionData);
+
+  /**
+   * @param {Request} req
+   * @param {SessionDataModel} sessionData
+   * @param {Boolean} setReqSesion whether to set req.session in this function or not defaults to true
+   * @returns
+   */
+  createSession(
+    req: Request,
+    sessionData?: SessionDataModel,
+    setReqSesion = true
+  ) {
+    const session = new Session(req, sessionData);
+    if (setReqSesion) req.session = session;
+    return session;
   }
 }
