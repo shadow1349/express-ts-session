@@ -11,7 +11,7 @@
 // export * from "./models";
 
 // export class Session implements SessionModel {
-//   options: SessionOptizonsModel;
+//   options: SessionOptionsModel;
 //   private ready: boolean = false;
 //   private originalHash?: string;
 //   private originalId?: string;
