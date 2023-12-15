@@ -1,4 +1,5 @@
 import { CookieModel } from "../models";
+import * as crypto from "crypto";
 
 /**
  * RegExp to match field-content in RFC 7230 sec 3.2
@@ -21,14 +22,13 @@ const fieldContentRegExp = /^[\u0009\u0020-\u007e\u0080-\u00ff]+$/;
  * @return {object}
  * @public
  */
-
-export function parse(str: string, options: CookieModel) {
+export function parse(str: string, options?: CookieModel) {
   if (typeof str !== "string") {
     throw new TypeError("argument str must be a string");
   }
 
   const obj: { [key: string]: string } = {};
-  const dec = options.decode || decode;
+  const dec = options?.decode || decode;
 
   let index = 0;
   while (index < str.length) {
@@ -84,7 +84,6 @@ export function parse(str: string, options: CookieModel) {
  * @return {string}
  * @public
  */
-
 export function serialize(name: string, val: string, options: CookieModel) {
   const opt = options || {};
   const enc = opt.encode || encode;
@@ -202,12 +201,62 @@ export function serialize(name: string, val: string, options: CookieModel) {
 }
 
 /**
+ * Sign the given `val` with `secret`.
+ *
+ * @param {String} val
+ * @param {String|NodeJS.ArrayBufferView|crypto.KeyObject} secret
+ * @return {String}
+ */
+export const sign = (
+  val: string,
+  secret: string | NodeJS.ArrayBufferView | crypto.KeyObject
+): string => {
+  if ("string" != typeof val)
+    throw new TypeError("Cookie value must be provided as a string.");
+  if (null == secret) throw new TypeError("Secret key must be provided.");
+  return (
+    val +
+    "." +
+    crypto
+      .createHmac("sha256", secret)
+      .update(val)
+      .digest("base64")
+      // eslint-disable-next-line no-useless-escape
+      .replace(/\=+$/, "")
+  );
+};
+
+/**
+ * Unsign and decode the given `input` with `secret`,
+ * returning `false` if the signature is invalid.
+ *
+ * @param {String} input
+ * @param {String|NodeJS.ArrayBufferView|crypto.KeyObject} secret
+ * @return {String|Boolean}
+ */
+export const unsign = (
+  input: string,
+  secret: string | NodeJS.ArrayBufferView | crypto.KeyObject
+): string | boolean => {
+  if ("string" != typeof input)
+    throw new TypeError("Signed cookie string must be provided.");
+  if (null == secret) throw new TypeError("Secret key must be provided.");
+  const tentativeValue = input.slice(0, input.lastIndexOf(".")),
+    expectedInput = exports.sign(tentativeValue, secret),
+    expectedBuffer = Buffer.from(expectedInput),
+    inputBuffer = Buffer.from(input);
+  return expectedBuffer.length === inputBuffer.length &&
+    crypto.timingSafeEqual(expectedBuffer, inputBuffer)
+    ? tentativeValue
+    : false;
+};
+
+/**
  * URL-decode string value. Optimized to skip native call when no %.
  *
  * @param {string} str
  * @returns {string}
  */
-
 function decode(str: string) {
   return str.indexOf("%") !== -1 ? decodeURIComponent(str) : str;
 }
@@ -218,7 +267,6 @@ function decode(str: string) {
  * @param {string} val
  * @returns {string}
  */
-
 function encode(val: string) {
   return encodeURIComponent(val);
 }
@@ -229,7 +277,6 @@ function encode(val: string) {
  * @param {*} val
  * @private
  */
-
 function isDate(val: Date) {
   return toString.call(val) === "[object Date]" || val instanceof Date;
 }
@@ -241,7 +288,6 @@ function isDate(val: Date) {
  * @param {function} decode
  * @private
  */
-
 function tryDecode(str: string, decode: (val: string) => string) {
   try {
     return decode(str);
