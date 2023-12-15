@@ -16,19 +16,26 @@ export class Session implements SessionModel {
 
   private sessionStore: StoreModel;
 
-  constructor(private req: Request, private data: SessionDataModel = {}) {
+  constructor(
+    private req: Request,
+    private sessionData: SessionDataModel = {}
+  ) {
     this.id = this.req.sessionId;
 
-    if (this.data.cookie) this.cookie = this.data.cookie as CookieModel;
+    if (this.sessionData.cookie)
+      this.cookie = this.sessionData.cookie as Cookie;
     else this.cookie = new Cookie({});
 
     if (!this.req.sessionStore) this.req.sessionStore = new Store(() => uuid());
 
     this.sessionStore = this.req.sessionStore;
 
-    if (Object.keys(this.data).length > 0) {
-      for (const propertyName in this.data) {
-        this[propertyName] = this.data[propertyName];
+    /**
+     * If there is data in the session, set it to the session
+     */
+    if (Object.keys(this.sessionData).length > 0) {
+      for (const propertyName in this.sessionData) {
+        this[propertyName] = this.sessionData[propertyName];
       }
     }
   }
@@ -42,7 +49,7 @@ export class Session implements SessionModel {
   }
 
   save() {
-    this.sessionStore.set(this.id, this.data);
+    this.sessionStore.set(this.id, this.sessionData);
   }
 
   regenerate() {}
@@ -50,4 +57,23 @@ export class Session implements SessionModel {
   destroy() {}
 
   reload() {}
+
+  data(): SessionDataModel {
+    const keys = Object.keys(this);
+
+    const data = keys.reduce<SessionDataModel>((acc, propertyName) => {
+      // We don't need req, sessionData, or sessionStore since those aren't part of the data
+      if (
+        propertyName === "req" ||
+        propertyName === "sessionData" ||
+        propertyName === "sessionStore" ||
+        propertyName === "cookie"
+      )
+        return acc;
+      acc[propertyName] = this[propertyName];
+      return acc;
+    }, {});
+
+    return data;
+  }
 }

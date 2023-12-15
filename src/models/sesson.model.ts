@@ -1,6 +1,5 @@
-
+import { Session, Store } from "../classes";
 import { CookieDataModel } from "./cookie.model";
-import { StoreModel } from "./store.model";
 
 export interface SessionDataModel {
   [propertyName: string]: string | number | boolean | object | CookieDataModel;
@@ -13,14 +12,15 @@ export interface SessionModel extends SessionDataModel {
   reload: () => void | Promise<void>;
   regenerate: () => void | Promise<void>;
   destroy: () => void | Promise<void>;
+  data: () => SessionDataModel;
 }
 
 declare global {
   namespace Express {
     export interface Request {
       sessionId: string;
-      session: SessionModel;
-      sessionStore: StoreModel;
+      session: Session;
+      sessionStore: Store;
     }
   }
 }

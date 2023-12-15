@@ -1,5 +1,6 @@
 import * as crypto from "crypto";
 import { NextFunction, Request, Response } from "express";
+import onHeaders from "on-headers";
 import { Cookie, Session, Store } from "./classes";
 import {
   CookieModel,
@@ -27,7 +28,6 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
   private savedHash?: string;
   private touched: boolean = false;
   private cookieId?: string;
-  private session?: Session;
 
   constructor(private opts: MiddlewareOptionsModel) {
     if (!opts.secret)
@@ -85,12 +85,35 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
      */
     this.cookieId = req.sessionId = this.getCookie(req) || "";
 
+    onHeaders(res, () => {
+      if (!req.session) {
+        console.debug("There is no session");
+        return;
+      }
+
+      if (!this.shouldSetCookie(req)) return;
+
+      if (req.session.cookie.secure && !this.isSecure(req)) {
+        console.debug("The cookie is secure but the request is not");
+        return;
+      }
+
+      if (!this.touched) {
+        req.session.touch();
+        this.touched = true;
+      }
+
+      this.setCookie(req, res);
+    });
+
     /**
      * This will generate a brand new session ID if one does not exist.
      */
     if (!req.sessionId) {
       this.store.generate(req);
       this.originalId = req.sessionId;
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
       this.originalHash = this.hash(req.session);
       next();
       return;
@@ -124,7 +147,7 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
    * @param {SessionDataModel} sessionData
    */
   private inflateSession(req: Request, sessionData: SessionDataModel) {
-    this.session = this.store.createSession(req, sessionData);
+    req.session = this.store.createSession(req, sessionData);
     this.originalId = req.sessionId;
     this.originalHash = this.hash(req.session);
 
@@ -143,13 +166,11 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
     if (typeof newSessionId === "string") req.sessionId = newSessionId;
     else req.sessionId = await newSessionId;
 
-    this.session = new Session(req);
-
-    req.session = this.session;
-    req.session["cookie"] = this.cookie;
+    req.session = new Session(req);
+    req.session.cookie = this.cookie;
 
     if (this.cookie.secure === "auto")
-      (req.session["cookie"] as CookieModel).secure = this.isSecure(req);
+      req.session.cookie.secure = this.isSecure(req);
   }
 
   /**
@@ -173,10 +194,31 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
     return proto === "https";
   }
 
+  /**
+   * Will help to tell if the session has been modified
+   * @param {SessionDataModel} session
+   * @returns
+   */
+  private isModified(session: Session) {
+    return (
+      this.originalId !== session.id || this.originalHash !== this.hash(session)
+    );
+  }
+
+  /**
+   * A helpful utility to tell us if the cookie should be set
+   * on the response.
+   * @param {Request} req
+   * @returns
+   */
   private shouldSetCookie(req: Request) {
     if (typeof req.sessionId !== "string") return false;
 
-    return true;
+    return this.cookieId !== req.sessionId
+      ? this.saveUninitialized || this.isModified(req.session)
+      : this.rolling ||
+          ((req.session.cookie as CookieModel).expires !== null &&
+            this.isModified(req.session));
   }
 
   /**
@@ -197,6 +239,8 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
       if (raw) {
         if (raw.substring(0, 2) === "s:") {
           val = this.unsignCookie(raw.slice(2), this.secret as string[]);
+        } else {
+          val = raw;
         }
       }
     }
@@ -211,11 +255,41 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
       if (raw) {
         if (raw.substring(0, 2) === "s:") {
           val = this.unsignCookie(raw.slice(2), this.secret as string[]);
+        } else {
+          val = raw;
         }
       }
     }
 
     return val;
+  }
+
+  /**
+   * Sets the cookie on the header
+   * @param {Request} req
+   * @param {Response} res
+   */
+  private setCookie(req: Request, res: Response) {
+    // const signed = "s:" + sign(req.sessionId, this.secret[0]);
+    const data = this.cookie.serialize(this.name, req.sessionId);
+
+    const prev = res.getHeader("Set-Cookie") || [];
+    const header = Array.isArray(prev) ? prev.concat(data) : [prev, data];
+    res.setHeader("Set-Cookie", header as string[]);
+    /*
+      function setcookie(res, name, val, secret, options)
+
+
+      var signed = 's:' + signature.sign(val, secret);
+      var data = cookie.serialize(name, signed, options);
+
+      debug('set-cookie %s', data);
+
+      var prev = res.getHeader('Set-Cookie') || []
+      var header = Array.isArray(prev) ? prev.concat(data) : [prev, data];
+
+      res.setHeader('Set-Cookie', header)
+    */
   }
 
   /**
@@ -241,11 +315,10 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
    * @param {SessionDataModel} sess
    * @returns
    */
-  private hash(sess: SessionDataModel) {
-    const str = JSON.stringify(sess, (key, val) => {
-      if (key !== "cookie") return;
-      return val;
-    });
+  private hash(sess: Session) {
+    const data = sess.data();
+
+    const str = JSON.stringify(data);
 
     return crypto.createHash("sha256").update(str, "utf8").digest("hex");
   }
