@@ -17,7 +17,7 @@ export class Cookie implements CookieModel {
   priority?: boolean | string;
 
   constructor(private opts: Partial<CookieModel>) {
-    this.maxAge = this.opts.maxAge || undefined;
+    this.maxAge = this.opts.maxAge || 9000;
     this.signed = this.opts.signed || false;
     this.expires = this.opts.expires || null;
     this.httpOnly = this.opts.httpOnly || true;
