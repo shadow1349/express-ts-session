@@ -1,6 +1,6 @@
 import { Request } from "express";
-import { SessionDataModel, SessionModel } from "./sesson.model";
 import { Session } from "../classes";
+import { SessionDataModel } from "./sesson.model";
 
 export interface StoreModel {
   generate?: (req: Request) => void | Promise<void>;
@@ -8,7 +8,8 @@ export interface StoreModel {
   load?: (sid: string) => void | Promise<void>;
   createSession?: (
     req: Request,
-    session: SessionModel
+    session: SessionDataModel,
+    setReqSesion?: boolean
   ) => Session | Promise<Session>;
   get: (sid: string) => SessionDataModel | Promise<SessionDataModel>;
   set: (sid: string, session: SessionDataModel) => void;
