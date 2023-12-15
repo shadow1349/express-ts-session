@@ -21,22 +21,10 @@ const session = new ExpressTSSession({
   name: "test",
 });
 
-app.use(
-  session.init
-  //   expressTsSession({
-  //     cookie: new Cookie({
-  //       maxAge: 1000 * 60 * 60 * 24 * 7,
-  //       secure: false,
-  //       httpOnly: true,
-  //       path: "/",
-  //       sameSite: false,
-  //     }),
-  //     name: "test",
-  //   })
-);
+app.use(session.init);
 
 app.get("/", (req, res) => {
-  res.send("Hello World");
+  res.json({ response: "Hello World" });
 });
 
 app.listen(3000, () => {
