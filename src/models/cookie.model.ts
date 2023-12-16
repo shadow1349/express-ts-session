@@ -55,10 +55,6 @@ export interface CookieDataModel {
    * The cookie.secure option can also be set to the special value `auto` to have this setting automatically match the determined security of the connection.
    * Be careful when using this setting if the site is available both as HTTP and HTTPS, as once the cookie is set on HTTPS, it will no longer be visible over HTTP.
    * This is useful when the Express "trust proxy" setting is properly setup to simplify development vs production configuration.
-   *
-   * If you have your node.js behind a proxy and are using `secure: true`, you need to set "trust proxy" in express. Please see the [README](https://github.com/expressjs/session) for details.
-   *
-   * Please see the [README](https://github.com/expressjs/session) for an example of using secure cookies in production, but allowing for testing in development based on NODE_ENV.
    */
   secure?: SecureType;
   /**

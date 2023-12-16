@@ -15,7 +15,7 @@ export interface MiddlewareOptionsModel {
    *   that will be used as a session ID. The function is given the request as the first argument if you want to use some
    *   value attached to it when generating the ID.
    *
-   * The default value is a custom UUI function to generate IDs.
+   * The default value is a custom UUID function to generate IDs.
    * Be careful to generate unique IDs so your sessions do not conflict.
    */
   genid?: (req: Request) => string | Promise<string>;
