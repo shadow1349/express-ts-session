@@ -49,7 +49,8 @@ export class Session implements SessionModel {
   }
 
   save() {
-    this.sessionStore.set(this.id, this.sessionData);
+    const data = this.data();
+    this.sessionStore.set(this.id, data);
   }
 
   async regenerate() {

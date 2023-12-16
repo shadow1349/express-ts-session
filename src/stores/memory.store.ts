@@ -6,7 +6,6 @@ export class MemoryStore extends Store {
 
   get(sid: string): SessionDataModel {
     const existingSession = this.sessions[sid];
-
     if (!existingSession) return {};
 
     return existingSession;

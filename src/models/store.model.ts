@@ -17,5 +17,5 @@ export interface StoreModel {
   all?: () => void | Promise<void>;
   length?: () => number | Promise<number>;
   clear?: () => void | Promise<void>;
-  touch?: () => void | Promise<void>;
+  touch?: (sid: string, session: Session) => void | Promise<void>;
 }
