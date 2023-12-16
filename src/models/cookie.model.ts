@@ -13,6 +13,10 @@ export interface CookieDataModel {
    * @default 9000
    */
   maxAge?: number | null;
+  /**
+   * Indicates if the cookie is to be signed. This can be used to detect if the cookie has been tampered with.
+   * @default true
+   */
   signed?: boolean;
   /**
    * Indicates the maximum lifetime of the cookie as an HTTP-date timestamp. See Date for the required formatting.
