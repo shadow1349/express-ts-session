@@ -17,6 +17,7 @@ const session = new ExpressTSSession({
     httpOnly: true,
     path: "/",
     sameSite: false,
+    signed: true,
   }),
   name: "test",
 });
@@ -24,6 +25,7 @@ const session = new ExpressTSSession({
 app.use(session.init);
 
 app.get("/", (req, res) => {
+  req.session["test"] = "123";
   res.json({ response: "Hello World" });
 });
 

@@ -4,10 +4,10 @@ import {
   SessionDataModel,
   SessionModel,
   StoreModel,
-} from "../models";
-import { uuid } from "../util";
-import { Cookie } from "./cookie";
-import { Store } from "./store";
+} from "../../models";
+import { uuid } from "../../util";
+import { Cookie } from "../cookie/cookie";
+import { Store } from "../store/store";
 
 export class Session implements SessionModel {
   id: string;

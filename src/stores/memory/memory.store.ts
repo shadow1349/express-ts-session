@@ -1,5 +1,5 @@
-import { Store } from "../classes";
-import { SessionDataModel } from "../models";
+import { Store } from "../../classes";
+import { SessionDataModel } from "../../models";
 
 export class MemoryStore extends Store {
   private sessions: { [sid: string]: SessionDataModel } = {};

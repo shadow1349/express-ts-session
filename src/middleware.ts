@@ -8,7 +8,7 @@ import {
   SessionDataModel,
   UnsetType,
 } from "./models";
-import { MemoryStore } from "./stores/memory.store";
+import { MemoryStore } from "./stores/memory/memory.store";
 import { parse, sign, unsign, uuid } from "./util";
 
 export class ExpressTSSession implements MiddlewareOptionsModel {

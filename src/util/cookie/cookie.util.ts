@@ -1,4 +1,4 @@
-import { CookieModel } from "../models";
+import { CookieModel } from "../../models";
 import * as crypto from "crypto";
 
 /**

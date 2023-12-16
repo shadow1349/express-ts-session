@@ -1,8 +1,8 @@
 import { Request } from "express";
-import { CookieModel, SessionDataModel, StoreModel } from "../models";
-import { uuid } from "../util";
-import { Cookie } from "./cookie";
-import { Session } from "./session";
+import { CookieModel, SessionDataModel, StoreModel } from "../../models";
+import { uuid } from "../../util";
+import { Cookie } from "../cookie/cookie";
+import { Session } from "../session/session";
 
 export class Store implements StoreModel {
   constructor(

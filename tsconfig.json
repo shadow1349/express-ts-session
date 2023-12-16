@@ -109,5 +109,4 @@
   "files": ["src/index.ts"],
   "include": ["src/**/*"],
   "exclude": ["jest.config.ts", "src/**/*.test.ts", "src/**/*.spec.ts"]
-
 }

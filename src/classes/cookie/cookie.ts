@@ -1,5 +1,5 @@
-import { CookieModel, SameSiteType, SecureType } from "../models";
-import { serialize } from "../util";
+import { CookieModel, SameSiteType, SecureType } from "../../models";
+import { serialize } from "../../util";
 
 export class Cookie implements CookieModel {
   originalMaxAge?: number | null;
