@@ -9,7 +9,7 @@ import {
   UnsetType,
 } from "./models";
 import { MemoryStore } from "./stores/memory.store";
-import { parse, unsign, uuid } from "./util";
+import { parse, sign, unsign, uuid } from "./util";
 
 export class ExpressTSSession implements MiddlewareOptionsModel {
   cookie: Cookie;
@@ -88,18 +88,14 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
    * @param {NextFunction} next
    */
   init = async (req: Request, res: Response, next: NextFunction) => {
+    // If we have an existing session we can just go next
     if (req.session) return next();
 
+    // We will override the end method to intercept when a request is finished
     this.end = res.end;
     res.end = this.endMethod(req, res) as any;
 
-    req.sessionStore = this.store;
-
-    /**
-     * This will set the sessionID from the cookie if it exists.
-     */
-    this.cookieId = req.sessionId = this.getCookie(req) || "";
-
+    // We will check the headers and set the cookie if needed
     onHeaders(res, () => {
       if (!req.session) {
         console.debug("There is no session");
@@ -121,24 +117,27 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
       this.setCookie(req, res);
     });
 
-    /**
-     * This will generate a brand new session ID if one does not exist.
-     */
+    // We will set the store on the request
+    req.sessionStore = this.store;
+
+    // This will set the sessionID from the cookie if it exists.
+    this.cookieId = req.sessionId = this.getCookie(req) || "";
+
+    // This will generate a brand new session ID if one does not exist.
     if (!req.sessionId) {
       this.store.generate(req);
       this.originalId = req.sessionId;
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
       this.originalHash = this.hash(req.session);
       next();
       return;
     }
 
+    // If there is a req.sessionId we will try and grab the session from the store
     const existingSession = this.store.get(req.sessionId);
 
-    console.log("Existing session", existingSession);
-
+    // We need to check if we get a promise from the store or not
     if (existingSession instanceof Promise) {
+      // If we get a promise then we will call the .then method
       existingSession
         .then((session) => {
           this.inflateSession(req, session);
@@ -146,7 +145,9 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
           return;
         })
         .catch((err) => {
-          throw err;
+          // Go next with the error
+          next(err);
+          return;
         });
       return;
     } else {
@@ -167,7 +168,20 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
       if (!req.session)
         return this.end?.apply(res, [chunk, encoding as BufferEncoding]);
 
-      req.session.save();
+      if (this.shouldSaveSession(req)) {
+        this.store.set(req.sessionId, req.session.data());
+      } else if (
+        this.shouldTouchSession(req) &&
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        typeof this.store?.touch === "function" &&
+        !this.touched
+      ) {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        this.store?.touch(req.sessionId, req.session.data());
+        this.touched = true;
+      }
 
       return this.end?.apply(res, [chunk, encoding as BufferEncoding]);
     };
@@ -244,11 +258,15 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
   private shouldSaveSession(req: Request) {
     if (!req.session) return false;
 
-    return this.saveUninitialized &&
+    if (
+      this.saveUninitialized &&
       !this.savedHash &&
       this.cookieId !== req.sessionId
-      ? this.isModified(req.session)
-      : this.isSaved(req);
+    ) {
+      return this.isModified(req.session);
+    } else {
+      return this.isSaved(req);
+    }
   }
 
   /**
@@ -263,7 +281,8 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
   }
 
   /**
-   * If the session has been saved or not
+   * If the session has been saved or not. It will compare the original session ID
+   * along with the hashes of the original session and the current session.
    * @param {Request} req
    * @returns {boolean}
    */
@@ -275,7 +294,9 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
   }
 
   /**
-   * Will help to tell if the session has been modified
+   * Will help to tell if the session has been modified. We will compare the hashes
+   * of the original session and the current session along with the originalID and the
+   * current session id
    * @param {SessionDataModel} session
    * @returns {boolean}
    */
@@ -350,8 +371,14 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
    * @param {Response} res
    */
   private setCookie(req: Request, res: Response) {
-    // const signed = "s:" + sign(req.sessionId, this.secret[0]);
-    const data = this.cookie.serialize(this.name, req.sessionId);
+    const signed = "s:" + sign(req.sessionId, this.secret[0]);
+
+    const shouldSign = this.opts.cookie?.signed === true;
+
+    const data = this.cookie.serialize(
+      this.name,
+      shouldSign ? signed : req.sessionId
+    );
 
     const prev = res.getHeader("Set-Cookie") || [];
     const header = Array.isArray(prev) ? prev.concat(data) : [prev, data];
@@ -381,7 +408,6 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
   private unsignCookie(val: string, secrets: string[]) {
     for (let i = 0; i < secrets.length; i++) {
       const result = unsign(val, secrets[i]);
-
       // unsign will only ever return false if the signature does not match
       // so if it's not false it will always be a string
       if (result !== false) return result as string;
