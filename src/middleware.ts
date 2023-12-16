@@ -28,6 +28,18 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
   private savedHash?: string;
   private touched: boolean = false;
   private cookieId?: string;
+  private end?: {
+    (cb?: (() => void) | undefined): Response<any, Record<string, any>>;
+    (chunk: any, cb?: (() => void) | undefined): Response<
+      any,
+      Record<string, any>
+    >;
+    (
+      chunk: any,
+      encoding: BufferEncoding,
+      cb?: (() => void) | undefined
+    ): Response;
+  };
 
   constructor(private opts: MiddlewareOptionsModel) {
     if (!opts.secret)
@@ -78,6 +90,9 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
   init = async (req: Request, res: Response, next: NextFunction) => {
     if (req.session) return next();
 
+    this.end = res.end;
+    res.end = this.endMethod(req, res) as any;
+
     req.sessionStore = this.store;
 
     /**
@@ -121,6 +136,8 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
 
     const existingSession = this.store.get(req.sessionId);
 
+    console.log("Existing session", existingSession);
+
     if (existingSession instanceof Promise) {
       existingSession
         .then((session) => {
@@ -137,6 +154,23 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
       next();
       return;
     }
+  };
+
+  /**
+   * When a request is finished, this will handle the saving of the session.
+   * @param {Request} req
+   * @param {Response} res
+   */
+  private endMethod = (req: Request, res: Response) => {
+    return (chunk: any, encoding?: BufferEncoding | (() => void)) => {
+      // Nothing to do here
+      if (!req.session)
+        return this.end?.apply(res, [chunk, encoding as BufferEncoding]);
+
+      req.session.save();
+
+      return this.end?.apply(res, [chunk, encoding as BufferEncoding]);
+    };
   };
 
   /**
@@ -176,7 +210,7 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
   /**
    * This will tell us if the request is secure or not
    * @param {Request} req
-   * @returns
+   * @returns {boolean}
    */
   private isSecure(req: Request) {
     if (req.secure && req.protocol === "https") return true;
@@ -195,9 +229,55 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
   }
 
   /**
+   * If the session should be destroyed or not
+   * @param {Request} req
+   */
+  private shouldDestroySession(req: Request) {
+    return req.sessionId && this.unset === "destroy" && !req.session;
+  }
+
+  /**
+   * If the session should be saved or not
+   * @param {Request} req
+   * @returns {boolean}
+   */
+  private shouldSaveSession(req: Request) {
+    if (!req.session) return false;
+
+    return this.saveUninitialized &&
+      !this.savedHash &&
+      this.cookieId !== req.sessionId
+      ? this.isModified(req.session)
+      : this.isSaved(req);
+  }
+
+  /**
+   * If we should run the touch method on the session
+   * @param {Request} req
+   * @returns {boolean}
+   */
+  private shouldTouchSession(req: Request) {
+    if (typeof req.sessionId !== "string") return false;
+
+    return this.cookieId === req.sessionId && !this.shouldSaveSession(req);
+  }
+
+  /**
+   * If the session has been saved or not
+   * @param {Request} req
+   * @returns {boolean}
+   */
+  private isSaved(req: Request) {
+    return (
+      this.originalId === req.sessionId ||
+      this.savedHash === this.hash(req.session)
+    );
+  }
+
+  /**
    * Will help to tell if the session has been modified
    * @param {SessionDataModel} session
-   * @returns
+   * @returns {boolean}
    */
   private isModified(session: Session) {
     return (
@@ -209,7 +289,7 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
    * A helpful utility to tell us if the cookie should be set
    * on the response.
    * @param {Request} req
-   * @returns
+   * @returns {boolean}
    */
   private shouldSetCookie(req: Request) {
     if (typeof req.sessionId !== "string") return false;
@@ -226,7 +306,7 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
    * it exists.
    *
    * @param {Request} req
-   * @returns
+   * @returns {string | undefined}
    */
   private getCookie(req: Request): string | undefined {
     const header = req.headers.cookie;
@@ -296,7 +376,7 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
    *
    * @param {string} val
    * @param {string[]} secrets
-   * @returns
+   * @returns {string | undefined}
    */
   private unsignCookie(val: string, secrets: string[]) {
     for (let i = 0; i < secrets.length; i++) {
@@ -311,9 +391,9 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
   }
 
   /**
-   *
+   * Creates a hash of the session object
    * @param {SessionDataModel} sess
-   * @returns
+   * @returns {string}
    */
   private hash(sess: Session) {
     const data = sess.data();
