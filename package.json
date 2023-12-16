@@ -1,7 +1,7 @@
 {
   "name": "express-ts-session",
-  "version": "1.0.0",
-  "description": "Session middleware for Express built with TypeScript",
+  "version": "0.0.1-beta.1",
+  "description": "Session middleware for Express servers built with TypeScript",
   "main": "dist/index.js",
   "scripts": {
     "lint": "echo \"Error: no test specified\" && exit 1",
