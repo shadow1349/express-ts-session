@@ -245,6 +245,7 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
   /**
    * If the session should be destroyed or not
    * @param {Request} req
+   * todo implement destroy method
    */
   private shouldDestroySession(req: Request) {
     return req.sessionId && this.unset === "destroy" && !req.session;
