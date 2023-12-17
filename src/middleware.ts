@@ -384,20 +384,6 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
     const prev = res.getHeader("Set-Cookie") || [];
     const header = Array.isArray(prev) ? prev.concat(data) : [prev, data];
     res.setHeader("Set-Cookie", header as string[]);
-    /*
-      function setcookie(res, name, val, secret, options)
-
-
-      var signed = 's:' + signature.sign(val, secret);
-      var data = cookie.serialize(name, signed, options);
-
-      debug('set-cookie %s', data);
-
-      var prev = res.getHeader('Set-Cookie') || []
-      var header = Array.isArray(prev) ? prev.concat(data) : [prev, data];
-
-      res.setHeader('Set-Cookie', header)
-    */
   }
 
   /**

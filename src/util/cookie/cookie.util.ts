@@ -209,7 +209,7 @@ export function serialize(name: string, val: string, options: CookieModel) {
  */
 export const sign = (
   val: string,
-  secret: string | NodeJS.ArrayBufferView | crypto.KeyObject
+  secret: string | NodeJS.ArrayBufferView | crypto.KeyObject | null
 ): string => {
   if ("string" != typeof val)
     throw new TypeError("Cookie value must be provided as a string.");
@@ -237,7 +237,7 @@ export const sign = (
  */
 export const unsign = (
   input: string,
-  secret: string | NodeJS.ArrayBufferView | crypto.KeyObject
+  secret: string | NodeJS.ArrayBufferView | crypto.KeyObject | null
 ): string | boolean => {
   if ("string" != typeof input)
     throw new TypeError("Signed cookie string must be provided.");
