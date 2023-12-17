@@ -1,7 +1,7 @@
 import * as bodyParser from "body-parser";
 import express, { Request, Response } from "express";
 import request from "supertest";
-import { Cookie } from "./classes";
+import { Cookie, Store } from "./classes";
 import { ExpressTSSession } from "./middleware";
 import { MemoryStore } from "./stores/memory/memory.store";
 
@@ -62,6 +62,18 @@ describe("ExpressTSSession", () => {
 
   it("should be defined", () => {
     expect(middleware).toBeDefined();
+  });
+
+  it("should throw error if no secret is provided", () => {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    expect(() => new ExpressTSSession({})).toThrow();
+  });
+
+  it("should throw error if empty array is provided for secret", () => {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    expect(() => new ExpressTSSession({ secret: [] })).toThrow();
   });
 
   it("should set cookie", async () => {

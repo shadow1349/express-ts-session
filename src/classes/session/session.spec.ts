@@ -2,6 +2,7 @@ import { Request } from "express";
 import { Session } from "./session";
 import { MemoryStore } from "../../stores/memory/memory.store";
 import { Cookie, Store } from "..";
+import { uuid } from "./../../util/uuid/uuid.util";
 
 describe("Session Class", () => {
   let session: Session;
@@ -41,6 +42,24 @@ describe("Session Class", () => {
     delete req.sessionStore;
     session = new Session(req as Request);
     expect(session["sessionStore"]).toBeInstanceOf(Store);
+  });
+
+  it("should save session", () => {
+    const spy = jest.spyOn(session["sessionStore"], "set");
+    session.save();
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it("should reload session", () => {
+    const spy = jest.spyOn(session["sessionStore"], "get");
+    session.reload();
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it("should regenerate session", () => {
+    const spy = jest.spyOn(session["sessionStore"], "regenerate");
+    session.regenerate();
+    expect(spy).toHaveBeenCalled();
   });
 
   it("should set properties from sessionData", () => {

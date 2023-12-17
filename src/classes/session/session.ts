@@ -48,9 +48,11 @@ export class Session implements SessionModel {
     this.cookie.maxAge = this.cookie.originalMaxAge;
   }
 
-  save() {
+  async save() {
     const data = this.data();
-    this.sessionStore.set(this.id, data);
+    const resp = this.sessionStore.set(this.id, data);
+
+    if (resp instanceof Promise) await resp;
   }
 
   async regenerate() {

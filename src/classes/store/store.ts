@@ -47,7 +47,6 @@ export class Store implements StoreModel {
     );
   }
 
-
   async generate(req: Request): Promise<void> {
     const newSessionId = this.genid ? this.genid(req) : uuid();
 
@@ -63,7 +62,6 @@ export class Store implements StoreModel {
     req.session.cookie = new Cookie(this.cookieOptions || {});
   }
 
-
   async regenerate(req: Request) {
     const destroyResult = this.destroy(req.sessionId);
 
@@ -74,7 +72,6 @@ export class Store implements StoreModel {
     if (generateResult instanceof Promise) await generateResult;
   }
 
-
   async load(sid: string) {
     let existingSession = this.get(sid);
 
@@ -83,7 +80,7 @@ export class Store implements StoreModel {
         throw new Error(err);
       });
 
-    if (existingSession) {
+    if (existingSession && Object.keys(existingSession).length > 0) {
       this.createSession({ sessionId: sid } as Request, existingSession);
     } else
       throw new Error(
@@ -97,7 +94,10 @@ export class Store implements StoreModel {
     setReqSesion = true
   ) {
     const session = new Session(req, sessionData);
-    if (setReqSesion) req.session = session;
+    if (setReqSesion) {
+      req.session = session;
+      req.session.cookie = new Cookie(this.cookieOptions || {});
+    }
     return session;
   }
 }
