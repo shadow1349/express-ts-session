@@ -1,34 +1,127 @@
-import { Request, Response } from "express";
+import express, { Request, Response } from "express";
+import request from "supertest";
+import { Cookie } from "./classes";
 import { ExpressTSSession } from "./middleware";
 import { SessionDataModel } from "./models";
 import { MemoryStore } from "./stores/memory/memory.store";
-import { Cookie } from "./classes";
+import * as bodyParser from "body-parser";
 
 describe("ExpressTSSession", () => {
-  let middleware: ExpressTSSession;
+  const store = new MemoryStore();
+  const middleware = new ExpressTSSession({
+    secret: "test",
+    cookie: new Cookie({
+      maxAge: 1000 * 60 * 60 * 24 * 7,
+      secure: false,
+      httpOnly: true,
+      path: "/",
+      sameSite: false,
+      signed: true,
+    }),
+    name: "test",
+    store,
+  });
   let req: Partial<Request>;
   let res: Partial<Response>;
   let sessionData: SessionDataModel;
+  const app = express();
+  app.use(bodyParser.json());
+  app.use(middleware.init);
+
+  // Set the request object to the app so we can access it in our tests
+  app.use((request, response, next) => {
+    req = request;
+    res = response;
+    next();
+  });
+
+  app.get("/", (req, res) => {
+    res.status(200).json({ message: "ok" });
+  });
+
+  app.post("/set", (req, res) => {
+    const { key, value } = req.body;
+
+    if (!value || !value)
+      return res
+        .status(400)
+        .json({ message: "both key and value is required" });
+
+    req.session[key] = value;
+    res.status(200).json({ message: "ok" });
+  });
+
+  app.delete("/destroy", (req, res) => {
+    req.session.destroy();
+    res.status(200).json({ message: "ok" });
+  });
 
   beforeEach(() => {
     req = { headers: {} };
     res = {};
     sessionData = { cookie: { maxAge: 3600 } };
-    middleware = new ExpressTSSession({
-      cookie: new Cookie({ maxAge: 3600 }),
-      genid: (req) => "test-id",
-      name: "test-name",
-      resave: false,
-      rolling: false,
-      saveUninitialized: false,
-      secret: "test-secret",
-      store: new MemoryStore(),
-      unset: "destroy",
-    });
   });
 
   it("should be defined", () => {
     expect(middleware).toBeDefined();
+  });
+
+  it("should set cookie", async () => {
+    const response = await request(app).get("/");
+
+    expect(response.headers["set-cookie"]).toBeDefined();
+  });
+
+  it("should have session", async () => {
+    await request(app).get("/");
+
+    expect(req.session).toBeDefined();
+  });
+
+  it("should call store.set", async () => {
+    jest.spyOn(store, "set");
+
+    const response = await request(app)
+      .post("/set")
+      .send({ value: "test", key: "test" });
+
+    expect(response.status).toBe(200);
+
+    expect(store.set).toHaveBeenCalled();
+  });
+
+  it("should call store.get", async () => {
+    jest.spyOn(store, "get");
+
+    const response = await request(app).get("/");
+
+    const cookie = response.headers["set-cookie"];
+
+    expect(cookie).toBeDefined();
+
+    await request(app).get("/").set("Cookie", cookie);
+
+    expect(store.get).toHaveBeenCalled();
+  });
+
+  it("should call store.destroy", async () => {
+    jest.spyOn(store, "destroy");
+
+    const response = await request(app).delete("/destroy");
+
+    expect(response.status).toBe(200);
+
+    expect(store.destroy).toHaveBeenCalled();
+  });
+
+  it("should set session value", async () => {
+    const response = await request(app)
+      .post("/set")
+      .send({ key: "test", value: "test" });
+
+    expect(response.status).toBe(200);
+
+    expect(req.session!.test).toBe("test");
   });
 
   it("should generate id", async () => {
