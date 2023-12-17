@@ -127,37 +127,53 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
 
     // This will generate a brand new session ID if one does not exist.
     if (!req.sessionId) {
-      this.store.generate(req);
-      this.originalId = req.sessionId;
-      this.originalHash = this.hash(req.session);
+      this.createSession(req);
       next();
       return;
     }
 
-    // If there is a req.sessionId we will try and grab the session from the store
-    const existingSession = this.store.get(req.sessionId);
+    try {
+      // If there is a req.sessionId we will try and grab the session from the store
+      const existingSession = this.store.get(req.sessionId);
 
-    // We need to check if we get a promise from the store or not
-    if (existingSession instanceof Promise) {
-      // If we get a promise then we will call the .then method
-      existingSession
-        .then((session) => {
-          this.inflateSession(req, session);
-          next();
-          return;
-        })
-        .catch((err) => {
-          // Go next with the error
-          next(err);
-          return;
-        });
-      return;
-    } else {
-      this.inflateSession(req, existingSession);
+      // We need to check if we get a promise from the store or not
+      if (existingSession instanceof Promise) {
+        // If we get a promise then we will call the .then method
+        existingSession
+          .then((session) => {
+            this.inflateSession(req, session);
+            next();
+            return;
+          })
+          .catch((err) => {
+            // Go next with the error
+            next(err);
+            return;
+          });
+        return;
+      } else {
+        this.inflateSession(req, existingSession);
+        next();
+        return;
+      }
+    } catch (e) {
+      // If we get an error we will generate a new session
+      this.createSession(req);
       next();
       return;
     }
   };
+
+  /**
+   * Generating a new session will create a new session ID and session object
+   * @param {Request} req 
+   */
+  private createSession(req: Request) {
+    this.store.generate(req);
+    this.originalId = req.sessionId;
+    this.cookieId = req.sessionId;
+    this.originalHash = this.hash(req.session);
+  }
 
   /**
    * When a request is finished, this will handle the saving of the session.
@@ -376,7 +392,9 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
   private setCookie(req: Request, res: Response) {
     const signed = "s:" + sign(req.sessionId, this.secret[0]);
 
-    const shouldSign = this.opts.cookie?.signed === true;
+    const shouldSign = this.cookie?.signed === true;
+
+    console.log("shouldSign", shouldSign);
 
     const data = this.cookie.serialize(
       this.name,
@@ -413,7 +431,11 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
   private hash(sess: Session) {
     const data = sess.data();
 
+    console.log("DATA: ", data);
+
     const str = JSON.stringify(data);
+
+    console.log("STR: ", str);
 
     return crypto.createHash("sha256").update(str, "utf8").digest("hex");
   }
