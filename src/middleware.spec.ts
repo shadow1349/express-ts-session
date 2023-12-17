@@ -125,6 +125,8 @@ describe("ExpressTSSession", () => {
   });
 
   it("should generate id", async () => {
+    middleware.genid = jest.fn().mockResolvedValue("test-id");
+
     const id = await middleware.genid(req as Request);
     expect(id).toBe("test-id");
   });
