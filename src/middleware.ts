@@ -166,7 +166,7 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
 
   /**
    * Generating a new session will create a new session ID and session object
-   * @param {Request} req 
+   * @param {Request} req
    */
   private createSession(req: Request) {
     this.store.generate(req);
@@ -394,8 +394,6 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
 
     const shouldSign = this.cookie?.signed === true;
 
-    console.log("shouldSign", shouldSign);
-
     const data = this.cookie.serialize(
       this.name,
       shouldSign ? signed : req.sessionId
@@ -431,11 +429,7 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
   private hash(sess: Session) {
     const data = sess.data();
 
-    console.log("DATA: ", data);
-
     const str = JSON.stringify(data);
-
-    console.log("STR: ", str);
 
     return crypto.createHash("sha256").update(str, "utf8").digest("hex");
   }

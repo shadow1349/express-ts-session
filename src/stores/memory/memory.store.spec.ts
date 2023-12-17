@@ -19,8 +19,8 @@ describe("Memory Store", () => {
     expect(store.get("test-id")).toBe(sessionData);
   });
 
-  it("should return empty object if session does not exist", () => {
-    expect(store.get("non-existent-id")).toEqual({});
+  it("should throw error if session does not exist", () => {
+    expect(() => store.get("non-existent-id")).toThrow();
   });
 
   it("should set session data", () => {
@@ -30,8 +30,9 @@ describe("Memory Store", () => {
   });
 
   it("should destroy session", () => {
+    store.set("test-id", { id: "123" });
     store.destroy("test-id");
-    expect(store.get("test-id")).toEqual({});
+    expect(() => store.get("test-id")).toThrow();
   });
 
   it("should return length of sessions", () => {

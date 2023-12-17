@@ -14,7 +14,7 @@ describe("Session Class", () => {
       sessionStore: new MemoryStore(),
       genid: () => uuid(),
     };
-    session = new Session(req as Request);
+    session = new Session(req as Request, { test: "test" });
   });
 
   it("should be defined", () => {
@@ -52,6 +52,10 @@ describe("Session Class", () => {
   });
 
   it("should reload session", () => {
+    session.id = "new-id";
+
+    session["sessionStore"].set("new-id", { test: "new-test" });
+
     const spy = jest.spyOn(session["sessionStore"], "get");
     session.reload();
     expect(spy).toHaveBeenCalled();

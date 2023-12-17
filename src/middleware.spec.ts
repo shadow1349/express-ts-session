@@ -10,7 +10,6 @@ describe("ExpressTSSession", () => {
   const name = "test";
   const secret = "test";
   const genid = jest.fn((req) => {
-    console.log("HERE");
     return "test-id";
   });
   let middleware: ExpressTSSession = new ExpressTSSession({
