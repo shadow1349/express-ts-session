@@ -5,6 +5,7 @@ Stores are an important aspect of managing your sessions. These will hold all th
 # Available Stores
 
 - [Memory Store](./memory/README.md)
+- [Firestore Store](https://github.com/shadow1349/express-ts-session-firestore)
 
 # Creating your own store
 
