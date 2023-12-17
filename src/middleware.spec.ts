@@ -1,14 +1,20 @@
 import * as bodyParser from "body-parser";
 import express, { Request, Response } from "express";
 import request from "supertest";
-import { Cookie, Store } from "./classes";
+import { Cookie } from "./classes";
 import { ExpressTSSession } from "./middleware";
 import { MemoryStore } from "./stores/memory/memory.store";
 
 describe("ExpressTSSession", () => {
   const store = new MemoryStore();
-  const middleware = new ExpressTSSession({
-    secret: "test",
+  const name = "test";
+  const secret = "test";
+  const genid = jest.fn((req) => {
+    console.log("HERE");
+    return "test-id";
+  });
+  let middleware: ExpressTSSession = new ExpressTSSession({
+    secret,
     cookie: new Cookie({
       maxAge: 1000 * 60 * 60 * 24 * 7,
       secure: false,
@@ -17,8 +23,9 @@ describe("ExpressTSSession", () => {
       sameSite: false,
       signed: true,
     }),
-    name: "test",
+    name,
     store,
+    genid,
   });
   let req: Partial<Request>;
   let res: Partial<Response>;
@@ -56,7 +63,21 @@ describe("ExpressTSSession", () => {
   });
 
   beforeEach(() => {
-    req = { headers: {} };
+    middleware = new ExpressTSSession({
+      secret,
+      cookie: new Cookie({
+        maxAge: 1000 * 60 * 60 * 24 * 7,
+        secure: false,
+        httpOnly: true,
+        path: "/",
+        sameSite: false,
+        signed: true,
+      }),
+      name,
+      store,
+      genid,
+    });
+    req = { headers: {}, genid };
     res = {};
   });
 
@@ -144,6 +165,11 @@ describe("ExpressTSSession", () => {
 
     const id = await middleware.genid(req as Request);
     expect(id).toBe("test-id");
+  });
+
+  it("should call custom genid method", async () => {
+    await request(app).get("/");
+    expect(genid).toHaveBeenCalled();
   });
 
   it("should init session", () => {

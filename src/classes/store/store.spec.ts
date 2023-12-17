@@ -4,18 +4,15 @@ import { Store } from "./store";
 describe("Store Class", () => {
   let store: Store;
   let req: Partial<Request>;
+  const genid = jest.fn((req) => "test-id");
 
   beforeEach(() => {
-    req = {};
-    store = new Store((req) => "test-id", {});
+    req = { genid };
+    store = new Store({});
   });
 
   it("should be defined", () => {
     expect(store).toBeDefined();
-  });
-
-  it("should set genid function", () => {
-    expect(store["genid"]).toBeDefined();
   });
 
   it("req.sessionId should be test-id", async () => {
@@ -26,18 +23,15 @@ describe("Store Class", () => {
 
   it("should set cookieOptions", () => {
     const cookieOptions = { maxAge: 3600 };
-    store = new Store((req) => "test-id", cookieOptions);
+    const store = new Store(cookieOptions);
     expect(store["cookieOptions"]).toBe(cookieOptions);
   });
 
   it("should set cookieOptions to empty object", () => {
-    store = new Store((req) => "test-id");
     expect(store["cookieOptions"]).toEqual({});
   });
 
   it("should call generate", () => {
-    store = new Store((req) => "test-id");
-
     jest.spyOn(store, "generate");
 
     store.regenerate(req as Request);
@@ -45,8 +39,6 @@ describe("Store Class", () => {
   });
 
   it("should call destroy", () => {
-    store = new Store((req) => "test-id");
-
     jest.spyOn(store, "destroy");
 
     store.regenerate(req as Request);
@@ -54,13 +46,12 @@ describe("Store Class", () => {
   });
 
   it("should call genid when generate is called", () => {
-    const genid = jest.fn((req) => "test-id");
-
-    store = new Store(genid);
+    const genidSpy = jest.spyOn(req, "genid");
+    store = new Store();
 
     store.generate(req as Request);
 
-    expect(genid).toHaveBeenCalled();
+    expect(genidSpy).toHaveBeenCalled();
   });
 
   it("should call destroy when regenerate is called", () => {
@@ -86,9 +77,7 @@ describe("Store Class", () => {
   });
 
   it("should call genid when regenerate is called", () => {
-    const genid = jest.fn((req) => "test-id");
-
-    store = new Store(genid);
+    store = new Store();
 
     store.regenerate(req as Request);
 
@@ -96,9 +85,7 @@ describe("Store Class", () => {
   });
 
   it("should generate session id from promise", async () => {
-    const genid = jest.fn((req) => Promise.resolve("test-id"));
-
-    store = new Store(genid);
+    store = new Store();
 
     await store.generate(req as Request);
 

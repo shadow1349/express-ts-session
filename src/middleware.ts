@@ -88,6 +88,8 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
    * @param {NextFunction} next
    */
   init = async (req: Request, res: Response, next: NextFunction) => {
+    req.genid = this.genid;
+
     // If we have an existing session we can just go next
     if (req.session) return next();
 

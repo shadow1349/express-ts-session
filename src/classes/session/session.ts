@@ -5,7 +5,6 @@ import {
   SessionModel,
   StoreModel,
 } from "../../models";
-import { uuid } from "../../util";
 import { Cookie } from "../cookie/cookie";
 import { Store } from "../store/store";
 
@@ -26,7 +25,7 @@ export class Session implements SessionModel {
       this.cookie = this.sessionData.cookie as Cookie;
     else this.cookie = new Cookie({});
 
-    if (!this.req.sessionStore) this.req.sessionStore = new Store(() => uuid());
+    if (!this.req.sessionStore) this.req.sessionStore = new Store();
 
     this.sessionStore = this.req.sessionStore;
 

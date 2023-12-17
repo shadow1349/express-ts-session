@@ -1,14 +1,10 @@
 import { Request } from "express";
 import { CookieModel, SessionDataModel, StoreModel } from "../../models";
-import { uuid } from "../../util";
 import { Cookie } from "../cookie/cookie";
 import { Session } from "../session/session";
 
 export class Store implements StoreModel {
-  constructor(
-    private genid?: (req: Request) => string | Promise<string>,
-    private cookieOptions: Partial<CookieModel> = {}
-  ) {}
+  constructor(private cookieOptions: Partial<CookieModel> = {}) {}
 
   //  PLACEHOLDER METHOD
   //  This method is a placeholder method so that TypeScript doesn't complain
@@ -44,14 +40,15 @@ export class Store implements StoreModel {
   }
 
   async generate(req: Request): Promise<void> {
-    const newSessionId = this.genid ? this.genid(req) : uuid();
+    if (!req.genid)
+      throw new Error("genid method is not implemented in the store");
 
-    if (newSessionId instanceof Promise) {
-      await newSessionId.then((sid) => {
-        req.sessionId = sid;
-      });
+    const newIDResult = req.genid(req);
+
+    if (newIDResult instanceof Promise) {
+      req.sessionId = await newIDResult;
     } else {
-      req.sessionId = newSessionId;
+      req.sessionId = newIDResult;
     }
 
     req.session = new Session(req);

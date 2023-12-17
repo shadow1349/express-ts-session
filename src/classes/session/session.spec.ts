@@ -11,7 +11,8 @@ describe("Session Class", () => {
   beforeEach(() => {
     req = {
       sessionId: "test-id",
-      sessionStore: new MemoryStore(() => "test-uuid"),
+      sessionStore: new MemoryStore(),
+      genid: () => uuid(),
     };
     session = new Session(req as Request);
   });

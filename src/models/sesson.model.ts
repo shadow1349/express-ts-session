@@ -1,5 +1,6 @@
 import { Session, Store } from "../classes";
 import { CookieDataModel } from "./cookie.model";
+import { Request as HttpRequest } from "express";
 
 export interface SessionDataModel {
   [propertyName: string]: string | number | boolean | object | CookieDataModel;
@@ -21,6 +22,7 @@ declare global {
       sessionId: string;
       session: Session;
       sessionStore: Store;
+      genid: (req: HttpRequest) => string | Promise<string>;
     }
   }
 }
