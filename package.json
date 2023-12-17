@@ -10,6 +10,10 @@
     "version": "echo \"VERSIONING\""
   },
   "author": "Sam Redmond",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shadow1349/express-ts-session"
+  },
   "license": "MIT",
   "devDependencies": {
     "@types/express": "^4.17.21",
