@@ -1,6 +1,6 @@
 # Express TS Session
 
-Express TS Session is an implementation of express-session written in TypeScript and simplified. Express TS Session is more extensible and flexible by using OOP design.
+Express TS Session is an implementation of express-session written in TypeScript and simplified using promises as opposed to callbacks. Express TS Session is more extensible and flexible by using OOP design.
 
 ## Read before using
 

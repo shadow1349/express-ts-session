@@ -10,22 +10,19 @@ export class Store implements StoreModel {
     private cookieOptions: Partial<CookieModel> = {}
   ) {}
 
-  /**
-   * PLACEHOLDER METHOD
-   * This method is a placeholder method so that TypeScript doesn't complain
-   * about calling destroy from other functions
-   */
+  //  PLACEHOLDER METHOD
+  //  This method is a placeholder method so that TypeScript doesn't complain
+  //  about calling destroy from other functions
   destroy(sid: string): void | Promise<void> {
     console.log(
       "This is a placeholder method. Please make sure you implement a destroy method in your store",
       sid
     );
   }
-  /**
-   * PLACEHOLDER METHOD
-   * This method is a placeholder method so that TypeScript doesn't complain
-   * about calling destroy from other functions
-   */
+
+  //  PLACEHOLDER METHOD
+  //  This method is a placeholder method so that TypeScript doesn't complain
+  //  about calling get from other functions
   get(sid: string): SessionDataModel | Promise<SessionDataModel> {
     console.log(
       "This is a placeholder method. Please make sure you implement a get method in your store",
@@ -34,11 +31,10 @@ export class Store implements StoreModel {
 
     return {};
   }
-  /**
-   * PLACEHOLDER METHOD
-   * This method is a placeholder method so that TypeScript doesn't complain
-   * about calling destroy from other functions
-   */
+
+  //  PLACEHOLDER METHOD
+  //  This method is a placeholder method so that TypeScript doesn't complain
+  //  about calling set from other functions
   set(sid: string, data: SessionDataModel): void {
     console.log(
       "This is a placeholder method. Please make sure you implement a set method in your store",
