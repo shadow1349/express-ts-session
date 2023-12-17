@@ -6,6 +6,13 @@ Express TS Session is an implementation of express-session written in TypeScript
 
 Express TS Sessopm is curently in beta, so if you use it expect for there to be bugs. Please don't use this in production yet.
 
+# Table of Contents
+
+- [Installation](#installation)
+- [Usage](#usage)
+  - [Express TS Session Middleware Options](#express-ts-session-middleware-options)
+- [Stores](./src/stores/README.md)
+
 # Installation
 
 ```
@@ -44,7 +51,7 @@ These are all the available options for the `ExpressTSSession` class.
 
 **cookie** - optional
 
-The middleware accepts a `Cookie` class as an option. See [Cookie Options](#Cookie-Options) section.
+The middleware accepts a `Cookie` class as an option. See [Cookie Options](#cookie-options) section.
 
 ```typescript
 // this is the default cookie that will be created if none is passed in
