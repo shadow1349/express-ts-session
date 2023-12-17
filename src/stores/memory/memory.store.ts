@@ -6,7 +6,10 @@ export class MemoryStore extends Store {
 
   get(sid: string): SessionDataModel {
     const existingSession = this.sessions[sid];
-    if (!existingSession) return {};
+    if (!existingSession)
+      throw new Error(
+        "There is no existing session in the store but a cookie was sent with a session id"
+      );
 
     return existingSession;
   }
