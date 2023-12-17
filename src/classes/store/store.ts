@@ -47,6 +47,7 @@ export class Store implements StoreModel {
     );
   }
 
+
   async generate(req: Request): Promise<void> {
     const newSessionId = this.genid ? this.genid(req) : uuid();
 
@@ -62,6 +63,7 @@ export class Store implements StoreModel {
     req.session.cookie = new Cookie(this.cookieOptions || {});
   }
 
+
   async regenerate(req: Request) {
     const destroyResult = this.destroy(req.sessionId);
 
@@ -71,6 +73,7 @@ export class Store implements StoreModel {
 
     if (generateResult instanceof Promise) await generateResult;
   }
+
 
   async load(sid: string) {
     let existingSession = this.get(sid);
@@ -88,12 +91,6 @@ export class Store implements StoreModel {
       );
   }
 
-  /**
-   * @param {Request} req
-   * @param {SessionDataModel} sessionData
-   * @param {Boolean} setReqSesion whether to set req.session in this function or not defaults to true
-   * @returns
-   */
   createSession(
     req: Request,
     sessionData?: SessionDataModel,
