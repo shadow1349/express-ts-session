@@ -1,10 +1,9 @@
+import * as bodyParser from "body-parser";
 import express, { Request, Response } from "express";
 import request from "supertest";
 import { Cookie } from "./classes";
 import { ExpressTSSession } from "./middleware";
-import { SessionDataModel } from "./models";
 import { MemoryStore } from "./stores/memory/memory.store";
-import * as bodyParser from "body-parser";
 
 describe("ExpressTSSession", () => {
   const store = new MemoryStore();
@@ -23,7 +22,7 @@ describe("ExpressTSSession", () => {
   });
   let req: Partial<Request>;
   let res: Partial<Response>;
-  let sessionData: SessionDataModel;
+
   const app = express();
   app.use(bodyParser.json());
   app.use(middleware.init);
@@ -59,7 +58,6 @@ describe("ExpressTSSession", () => {
   beforeEach(() => {
     req = { headers: {} };
     res = {};
-    sessionData = { cookie: { maxAge: 3600 } };
   });
 
   it("should be defined", () => {
@@ -70,6 +68,14 @@ describe("ExpressTSSession", () => {
     const response = await request(app).get("/");
 
     expect(response.headers["set-cookie"]).toBeDefined();
+  });
+
+  it("should call store.generate", async () => {
+    jest.spyOn(store, "generate");
+
+    await request(app).get("/");
+
+    expect(store.generate).toHaveBeenCalled();
   });
 
   it("should have session", async () => {
@@ -94,7 +100,6 @@ describe("ExpressTSSession", () => {
     jest.spyOn(store, "get");
 
     const response = await request(app).get("/");
-
     const cookie = response.headers["set-cookie"];
 
     expect(cookie).toBeDefined();
@@ -110,7 +115,6 @@ describe("ExpressTSSession", () => {
     const response = await request(app).delete("/destroy");
 
     expect(response.status).toBe(200);
-
     expect(store.destroy).toHaveBeenCalled();
   });
 
@@ -120,7 +124,6 @@ describe("ExpressTSSession", () => {
       .send({ key: "test", value: "test" });
 
     expect(response.status).toBe(200);
-
     expect(req.session!.test).toBe("test");
   });
 
