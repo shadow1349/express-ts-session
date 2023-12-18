@@ -32,15 +32,17 @@ export class MyStore extends Store {
     super();
   }
 
-  override set(sid: string, data: SessionDataModel): void | Promise<void> {
+  set(sid: string, data: SessionDataModel): void | Promise<void> {
     // your logic goes here
   }
 
-  override get(sid: string): SessionDataModel | Promise<SessionDataModel> {
+  // the get method needs to throw an error if no session is found
+  // otherwise sessions might not get generated properly
+  get(sid: string): SessionDataModel | Promise<SessionDataModel> {
     // your logic goes here
   }
 
-  override destroy(sid): void | Promise<void> {
+  destroy(sid): void | Promise<void> {
     // your logic goes here
   }
 }
