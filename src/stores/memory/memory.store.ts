@@ -1,7 +1,7 @@
-import { Store } from "../../classes";
+import { StoreModel } from "../../models";
 import { SessionDataModel } from "../../models";
 
-export class MemoryStore extends Store {
+export class MemoryStore implements StoreModel {
   private sessions: { [sid: string]: SessionDataModel } = {};
 
   get(sid: string): SessionDataModel {
@@ -20,23 +20,6 @@ export class MemoryStore extends Store {
 
   destroy(sid: string): void | Promise<void> {
     delete this.sessions[sid];
-  }
-
-  length(): number {
-    return Object.keys(this.sessions).length;
-  }
-
-  all(): SessionDataModel[] {
-    return Object.values(this.sessions);
-  }
-
-  touch(sid: string, data: SessionDataModel): void | Promise<void> {
-    const currentSession = this.get(sid);
-
-    if (currentSession && currentSession.cookie && data.cookie) {
-      currentSession.cookie = data.cookie;
-      this.set(sid, currentSession);
-    }
   }
 
   clear() {

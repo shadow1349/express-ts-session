@@ -28,7 +28,7 @@ export function parse(str: string, options?: CookieModel) {
   }
 
   const obj: { [key: string]: string } = {};
-  const dec = options?.decode || decode;
+  const dec = decode;
 
   let index = 0;
   while (index < str.length) {
@@ -86,7 +86,7 @@ export function parse(str: string, options?: CookieModel) {
  */
 export function serialize(name: string, val: string, options: CookieModel) {
   const opt = options || {};
-  const enc = opt.encode || encode;
+  const enc = encode;
 
   if (typeof enc !== "function") {
     throw new TypeError("option encode is invalid");
@@ -148,30 +148,30 @@ export function serialize(name: string, val: string, options: CookieModel) {
     str += "; Secure";
   }
 
-  if (opt.partitioned) {
-    str += "; Partitioned";
-  }
+  // if (opt.partitioned) {
+  //   str += "; Partitioned";
+  // }
 
-  if (opt.priority) {
-    const priority =
-      typeof opt.priority === "string"
-        ? opt.priority.toLowerCase()
-        : opt.priority;
+  // if (opt.priority) {
+  //   const priority =
+  //     typeof opt.priority === "string"
+  //       ? opt.priority.toLowerCase()
+  //       : opt.priority;
 
-    switch (priority) {
-      case "low":
-        str += "; Priority=Low";
-        break;
-      case "medium":
-        str += "; Priority=Medium";
-        break;
-      case "high":
-        str += "; Priority=High";
-        break;
-      default:
-        throw new TypeError("option priority is invalid");
-    }
-  }
+  //   switch (priority) {
+  //     case "low":
+  //       str += "; Priority=Low";
+  //       break;
+  //     case "medium":
+  //       str += "; Priority=Medium";
+  //       break;
+  //     case "high":
+  //       str += "; Priority=High";
+  //       break;
+  //     default:
+  //       throw new TypeError("option priority is invalid");
+  //   }
+  // }
 
   if (opt.sameSite) {
     const sameSite =

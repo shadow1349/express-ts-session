@@ -34,23 +34,4 @@ describe("Memory Store", () => {
     store.destroy("test-id");
     expect(() => store.get("test-id")).toThrow();
   });
-
-  it("should return length of sessions", () => {
-    expect(store.length()).toBe(1);
-  });
-
-  it("should return all sessions", () => {
-    expect(store.all()).toEqual([sessionData]);
-  });
-
-  it("should touch session", () => {
-    const newCookie = { maxAge: 7200 };
-    store.touch("test-id", { cookie: newCookie });
-    expect(store.get("test-id").cookie).toBe(newCookie);
-  });
-
-  it("should clear all sessions", () => {
-    store.clear();
-    expect(store.length()).toBe(0);
-  });
 });

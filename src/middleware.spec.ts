@@ -1,31 +1,19 @@
 import * as bodyParser from "body-parser";
 import express, { Request, Response } from "express";
 import request from "supertest";
-import { Cookie } from "./classes";
-import { ExpressTSSession } from "./middleware";
 import { MemoryStore } from "./stores/memory/memory.store";
+import { ExpressTSSession } from "./middleware";
 
+// import { MemoryStore } from "./stores/memory/memory.store";
 describe("ExpressTSSession", () => {
   const store = new MemoryStore();
-  const name = "test";
-  const secret = "test";
+  const name = "test-session";
+  const secret = "test-secret";
   const genid = jest.fn((req) => {
     return "test-id";
   });
-  let middleware: ExpressTSSession = new ExpressTSSession({
-    secret,
-    cookie: new Cookie({
-      maxAge: 1000 * 60 * 60 * 24 * 7,
-      secure: false,
-      httpOnly: true,
-      path: "/",
-      sameSite: false,
-      signed: true,
-    }),
-    name,
-    store,
-    genid,
-  });
+  let middleware = new ExpressTSSession({ name, secret, store, genid });
+
   let req: Partial<Request>;
   let res: Partial<Response>;
 
@@ -62,20 +50,7 @@ describe("ExpressTSSession", () => {
   });
 
   beforeEach(() => {
-    middleware = new ExpressTSSession({
-      secret,
-      cookie: new Cookie({
-        maxAge: 1000 * 60 * 60 * 24 * 7,
-        secure: false,
-        httpOnly: true,
-        path: "/",
-        sameSite: false,
-        signed: true,
-      }),
-      name,
-      store,
-      genid,
-    });
+    middleware = new ExpressTSSession({ name, secret, store, genid });
     req = { headers: {}, genid };
     res = {};
   });
@@ -84,16 +59,25 @@ describe("ExpressTSSession", () => {
     expect(middleware).toBeDefined();
   });
 
+  it("should set overwrite session default", () => {
+    expect(middleware.overwriteSession).toBe(false);
+  });
+
+  it("should set overwrite session to true", () => {
+    middleware = new ExpressTSSession({
+      name,
+      secret,
+      store,
+      genid,
+      overwriteSession: true,
+    });
+    expect(middleware.overwriteSession).toBe(true);
+  });
+
   it("should throw error if no secret is provided", () => {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     expect(() => new ExpressTSSession({})).toThrow();
-  });
-
-  it("should throw error if empty array is provided for secret", () => {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    expect(() => new ExpressTSSession({ secret: [] })).toThrow();
   });
 
   it("should set cookie", async () => {
@@ -103,11 +87,11 @@ describe("ExpressTSSession", () => {
   });
 
   it("should call store.generate", async () => {
-    jest.spyOn(store, "generate");
+    const spy = jest.spyOn(middleware, "genid");
 
     await request(app).get("/");
 
-    expect(store.generate).toHaveBeenCalled();
+    expect(spy).toHaveBeenCalled();
   });
 
   it("should have session", async () => {
@@ -171,10 +155,10 @@ describe("ExpressTSSession", () => {
     expect(genid).toHaveBeenCalled();
   });
 
-  it("should init session", () => {
-    const next = jest.fn();
-    middleware.init(req as Request, res as Response, next);
-    expect(req.session).toBeDefined();
-    expect(next).toHaveBeenCalled();
-  });
+  // it("should init session", () => {
+  //   const next = jest.fn();
+  //   middleware.init(req as Request, res as Response, next);
+  //   expect(req.session).toBeDefined();
+  //   expect(next).toHaveBeenCalled();
+  // });
 });

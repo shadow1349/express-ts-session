@@ -1,33 +1,39 @@
 import * as crypto from "crypto";
 import { NextFunction, Request, Response } from "express";
 import onHeaders from "on-headers";
-import { Cookie, Session, Store } from "./classes";
 import {
   CookieModel,
+  DefaultCookieOptions,
   MiddlewareOptionsModel,
   SessionDataModel,
-  UnsetType,
+  SessionModel,
+  StoreModel,
 } from "./models";
-import { MemoryStore } from "./stores/memory/memory.store";
-import { parse, sign, unsign, uuid } from "./util";
+import { Session } from "./session";
+import { parse, serialize, sign, unsign, uuid } from "./util";
+import { MemoryStore } from "./stores";
 
 export class ExpressTSSession implements MiddlewareOptionsModel {
-  cookie: Cookie;
+  cookie: CookieModel;
   genid: (req: Request) => string | Promise<string>;
   name: string;
-  proxy?: boolean;
-  resave: boolean;
-  rolling: boolean;
-  saveUninitialized: boolean;
-  secret: string | string[];
-  store: Store;
-  unset: UnsetType;
+  secret: string;
+  store: StoreModel;
+  overwriteSession?: boolean;
 
-  private originalId?: string;
-  private originalHash?: string;
-  private savedHash?: string;
-  private touched: boolean = false;
-  private cookieId?: string;
+  /**
+   * This is a hash of the session data that we get initially
+   * before the request gets to the API.
+   */
+  private existingHash?: string;
+  /**
+   * This is the ID of the session that we get initially
+   * before the request gets to the API
+   */
+  private existingId?: string;
+  /**
+   * This is a function that will be called when the request ends
+   */
   private end?: {
     (cb?: (() => void) | undefined): Response<any, Record<string, any>>;
     (chunk: any, cb?: (() => void) | undefined): Response<
@@ -43,33 +49,16 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
 
   constructor(private opts: MiddlewareOptionsModel) {
     if (!opts.secret)
-      throw new Error("You must provide a secret to express-ts-session");
+      throw new Error("You must provide a secret to the session middleware");
 
-    if (!opts.saveUninitialized)
-      console.warn(
-        "saveUninitialized is not set, the default will be set to true"
-      );
-
-    if (!opts.resave)
-      console.warn("resave is not set, the default will be set to true");
-
+    this.cookie = this.opts.cookie || DefaultCookieOptions;
+    this.genid = this.opts.genid || this.generateSessionID;
+    this.name = this.opts.name || "session.sid";
     this.secret = this.opts.secret;
-    this.cookie = this.opts.cookie || new Cookie({});
-    this.genid = this.opts.genid || uuid;
-    this.name = this.opts.name || "connect.sid";
-    this.proxy = this.opts.proxy;
-    this.resave = this.opts.resave || true;
-    this.rolling = this.opts.rolling || true;
-    this.saveUninitialized = this.opts.saveUninitialized || true;
     this.store = this.opts.store || new MemoryStore();
-    this.unset = this.opts.unset || "keep";
 
-    if (!Array.isArray(this.secret)) this.secret = [this.secret];
-    if (Array.isArray(this.secret) && this.secret.length === 0)
-      throw new Error("You must provide a secret to express-ts-session");
-
-    if (this.store.generate === undefined)
-      this.store.generate = this.generateNewSession;
+    if (this.opts.overwriteSession === undefined) this.overwriteSession = false;
+    else this.overwriteSession = this.opts.overwriteSession;
   }
 
   /**
@@ -89,90 +78,114 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
    */
   init = async (req: Request, res: Response, next: NextFunction) => {
     req.genid = this.genid;
+    req.regenerateSession = this.regenerateSession;
 
-    // If we have an existing session we can just go next
-    if (req.session) return next();
-
-    // We will override the end method to intercept when a request is finished
-    this.end = res.end;
-    res.end = this.endMethod(req, res) as any;
-
-    // We will check the headers and set the cookie if needed
-    onHeaders(res, () => {
-      if (!req.session) {
-        console.debug("There is no session");
-        return;
-      }
-
-      if (!this.shouldSetCookie(req)) return;
-
-      if (req.session.cookie.secure && !this.isSecure(req)) {
-        console.debug("The cookie is secure but the request is not");
-        return;
-      }
-
-      if (!this.touched) {
-        req.session.touch();
-        this.touched = true;
-      }
-
-      this.setCookie(req, res);
-    });
-
-    // We will set the store on the request
-    req.sessionStore = this.store;
-
-    // This will set the sessionID from the cookie if it exists.
-    this.cookieId = req.sessionId = this.getCookie(req) || "";
-
-    // This will generate a brand new session ID if one does not exist.
-    if (!req.sessionId) {
-      this.createSession(req);
+    // If we have an existing session for some reason then we can just move on
+    if (req.session && req.sessionId) {
       next();
       return;
     }
 
-    try {
-      // If there is a req.sessionId we will try and grab the session from the store
-      const existingSession = this.store.get(req.sessionId);
+    /**
+     * We're going to set res.end to this class so that we can call it later when our
+     * override method is done
+     */
+    this.end = res.end;
+    res.end = this.endMethod(req, res) as any;
 
-      // We need to check if we get a promise from the store or not
-      if (existingSession instanceof Promise) {
-        // If we get a promise then we will call the .then method
-        existingSession
-          .then((session) => {
-            this.inflateSession(req, session);
-            next();
-            return;
-          })
-          .catch((err) => {
-            // Go next with the error
-            next(err);
-            return;
-          });
+    /**
+     * On headers will be called when the response headers are being set. This is where we will
+     * handle sending the cookie
+     */
+    onHeaders(res, () => {
+      return this.handleOnHeaders(req, res);
+    });
+
+    /**
+     * We will try to get the session ID from the cookie. If it exists then we will try to get the
+     * session data from the store. If it doesn't exist then we will create a new session.
+     */
+    try {
+      const existingSessionId = this.getCookie(req);
+
+      /**
+       * If we are recalling a session then genid will return the existing session ID
+       * from the database so we'll wantto call that in the case we are recalling a session.
+       *
+       * If genid fails then genid will do its job and generate a new session ID.
+       */
+      if (existingSessionId) {
+        req.sessionId = existingSessionId;
+        const existingData = await this.store.get(existingSessionId);
+        await this.generateSession(req, existingData);
+        next();
         return;
       } else {
-        this.inflateSession(req, existingSession);
+        await this.generateSession(req);
         next();
         return;
       }
-    } catch (e) {
-      // If we get an error we will generate a new session
-      this.createSession(req);
+    } catch (error) {
+      await this.generateSession(req);
       next();
       return;
     }
   };
 
   /**
-   * Generating a new session will create a new session ID and session object
+   * This will handling creating a new session either off of an existing one
+   * or just a brand new session
+   *
    * @param {Request} req
+   * @param {SessionDataModel} data
    */
-  private createSession(req: Request) {
-    this.store.generate(req);
-    this.originalId = req.sessionId;
-    this.cookieId = req.sessionId;
-    this.originalHash = this.hash(req.session);
+  private async generateSession(req: Request, data?: SessionDataModel) {
+    if (!req.sessionId) {
+      const newSessionId = this.genid(req);
+      // Set the sessionId on the request object
+      if (newSessionId instanceof Promise) req.sessionId = await newSessionId;
+      else req.sessionId = newSessionId;
+    }
+
+    // Set the store on the reques object
+    req.sessionStore = this.store;
+    // Create a new session and save it on the request
+    const session = new Session(req, data);
+
+    session.cookie = this.cookie;
+    req.session = session;
+
+    if (!data)
+      // We're going to save our initial session to the database.
+      req.session.save();
+
+    this.existingHash = this.hash(session);
+    this.existingId = req.sessionId;
+  }
+
+  /**
+   * This will handle setting the cookie when the headers are being set.
+   * @param {Request} req
+   * @param {Response} res
+   */
+  private handleOnHeaders(req: Request, res: Response) {
+    /**
+     * At this point if we have no session then there's nothing to do
+     */
+    if (!req.session) return;
+
+    /**
+     * Grab the existing cookie options from the session
+     */
+    const sessionCookie = req.session.cookie as CookieModel;
+
+    /**
+     * If the cookie is only meant to be used with HTTPS requests and
+     * we have a non-secure request then we don't want to set the cookie
+     */
+    if (sessionCookie.secure && !this.isSecureRequest(req)) return;
+
+    this.setCookie(req, res);
   }
 
   /**
@@ -182,73 +195,65 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
    */
   private endMethod = (req: Request, res: Response) => {
     return (chunk: any, encoding?: BufferEncoding | (() => void)) => {
-      // Nothing to do here
+      // There is nothing to do here if there is no session by the end of the request
       if (!req.session)
         return this.end?.apply(res, [chunk, encoding as BufferEncoding]);
 
-      if (this.shouldSaveSession(req)) {
-        this.store.set(req.sessionId, req.session.data());
-      } else if (
-        this.shouldTouchSession(req) &&
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
-        typeof this.store?.touch === "function" &&
-        !this.touched
-      ) {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
-        this.store?.touch(req.sessionId, req.session.data());
-        this.touched = true;
-      }
+      // If the session has altered from the original then we should save it
+      if (this.shouldSaveSession(req)) req.session.save();
+
+      // This will check if the session is undefined or null and if we have a sessionid then we should destroy the session
+      if (this.shouldDestroySession(req)) this.store.destroy(req.sessionId);
 
       return this.end?.apply(res, [chunk, encoding as BufferEncoding]);
     };
   };
 
   /**
-   * This will inflate an existing session using
-   * the data retrieved from the store.
-   *
-   * @param {Request} req
-   * @param {SessionDataModel} sessionData
+   * Generate a session ID for the session cookie.
+   * @returns {string}
    */
-  private inflateSession(req: Request, sessionData: SessionDataModel) {
-    req.session = this.store.createSession(req, sessionData);
-    this.originalId = req.sessionId;
-    this.originalHash = this.hash(req.session);
-
-    if (!this.resave) {
-      this.savedHash = this.originalHash;
-    }
+  private generateSessionID(): string {
+    return uuid();
   }
 
   /**
-   * This will generate a new session
-   * @param {Request} req
+   * This will take a hash of the new session and compare it to the existing hash
+   * to tell us if we should save the session or not.
+   * @param {APISessionModel} session
+   * @returns {boolean}
    */
-  private async generateNewSession(req: Request) {
-    const newSessionId = this.genid(req);
+  private shouldSaveSession(req: Request) {
+    // If we don't have a session then there's nothing to do
+    if (!req.session || !req.sessionId) return false;
 
-    if (typeof newSessionId === "string") req.sessionId = newSessionId;
-    else req.sessionId = await newSessionId;
+    const newHash = this.hash(req.session);
 
-    req.session = new Session(req);
-    req.session.cookie = this.cookie;
+    if (newHash !== this.existingHash) return true;
 
-    if (this.cookie.secure === "auto")
-      req.session.cookie.secure = this.isSecure(req);
+    return false;
   }
 
   /**
-   * This will tell us if the request is secure or not
+   * If the session is undefined but we have a session ID then we should destroy the session
+   * @param {Request} req
+   * @returns
+   */
+  private shouldDestroySession(req: Request) {
+    return req.sessionId && !req.session;
+  }
+
+  /**
+   * This will tell us if the request is coming from a secure connection or not.
    * @param {Request} req
    * @returns {boolean}
    */
-  private isSecure(req: Request) {
+  private isSecureRequest(req: Request) {
     if (req.secure && req.protocol === "https") return true;
 
-    if (this.proxy !== undefined)
-      return this.proxy ? (req.secure = true) : false;
+    // TODO: implement proxy secure later
+    // if (this.proxy !== undefined)
+    //   return this.proxy ? (req.secure = true) : false;
 
     const header = req.headers["x-forwarded-proto"] || "";
     const index = header.indexOf(",");
@@ -261,85 +266,23 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
   }
 
   /**
-   * If the session should be destroyed or not
+   * This will handle regenerating the session. It will create a new session and
+   * delete the old one.
    * @param {Request} req
-   * todo implement destroy method
    */
-  private shouldDestroySession(req: Request) {
-    return req.sessionId && this.unset === "destroy" && !req.session;
-  }
+  private regenerateSession = async (req: Request) => {
+    // If we want to overwrite on regenerate then we need to destroy the existing session in the database
+    if (this.overwriteSession) req.session.destroy();
 
-  /**
-   * If the session should be saved or not
-   * @param {Request} req
-   * @returns {boolean}
-   */
-  private shouldSaveSession(req: Request) {
-    if (!req.session) return false;
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    delete req.session;
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    delete req.sessionId;
 
-    if (
-      this.saveUninitialized &&
-      !this.savedHash &&
-      this.cookieId !== req.sessionId
-    ) {
-      return this.isModified(req.session);
-    } else {
-      return this.isSaved(req);
-    }
-  }
-
-  /**
-   * If we should run the touch method on the session
-   * @param {Request} req
-   * @returns {boolean}
-   */
-  private shouldTouchSession(req: Request) {
-    if (typeof req.sessionId !== "string") return false;
-
-    return this.cookieId === req.sessionId && !this.shouldSaveSession(req);
-  }
-
-  /**
-   * If the session has been saved or not. It will compare the original session ID
-   * along with the hashes of the original session and the current session.
-   * @param {Request} req
-   * @returns {boolean}
-   */
-  private isSaved(req: Request) {
-    return (
-      this.originalId === req.sessionId ||
-      this.savedHash === this.hash(req.session)
-    );
-  }
-
-  /**
-   * Will help to tell if the session has been modified. We will compare the hashes
-   * of the original session and the current session along with the originalID and the
-   * current session id
-   * @param {SessionDataModel} session
-   * @returns {boolean}
-   */
-  private isModified(session: Session) {
-    return (
-      this.originalId !== session.id || this.originalHash !== this.hash(session)
-    );
-  }
-
-  /**
-   * A helpful utility to tell us if the cookie should be set
-   * on the response.
-   * @param {Request} req
-   * @returns {boolean}
-   */
-  private shouldSetCookie(req: Request) {
-    if (typeof req.sessionId !== "string") return false;
-
-    return this.cookieId !== req.sessionId
-      ? this.saveUninitialized || this.isModified(req.session)
-      : this.rolling ||
-          ((req.session.cookie as CookieModel).expires !== null &&
-            this.isModified(req.session));
-  }
+    await this.generateSession(req);
+  };
 
   /**
    * This function will retrieve the cookie from the request if
@@ -358,7 +301,8 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
 
       if (raw) {
         if (raw.substring(0, 2) === "s:") {
-          val = this.unsignCookie(raw.slice(2), this.secret as string[]);
+          const unsigned = unsign(raw.slice(2), this.secret);
+          if (typeof unsigned === "string") val = unsigned;
         } else {
           val = raw;
         }
@@ -374,7 +318,8 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
 
       if (raw) {
         if (raw.substring(0, 2) === "s:") {
-          val = this.unsignCookie(raw.slice(2), this.secret as string[]);
+          const unsigned = unsign(raw.slice(2), this.secret);
+          if (typeof unsigned === "string") val = unsigned;
         } else {
           val = raw;
         }
@@ -390,35 +335,11 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
    * @param {Response} res
    */
   private setCookie(req: Request, res: Response) {
-    const signed = "s:" + sign(req.sessionId, this.secret[0]);
-
-    const shouldSign = this.cookie?.signed === true;
-
-    const data = this.cookie.serialize(
-      this.name,
-      shouldSign ? signed : req.sessionId
-    );
-
+    const signed = "s:" + sign(req.sessionId, this.secret);
+    const data = serialize(this.name, signed, this.cookie);
     const prev = res.getHeader("Set-Cookie") || [];
     const header = Array.isArray(prev) ? prev.concat(data) : [prev, data];
     res.setHeader("Set-Cookie", header as string[]);
-  }
-
-  /**
-   *
-   * @param {string} val
-   * @param {string[]} secrets
-   * @returns {string | undefined}
-   */
-  private unsignCookie(val: string, secrets: string[]) {
-    for (let i = 0; i < secrets.length; i++) {
-      const result = unsign(val, secrets[i]);
-      // unsign will only ever return false if the signature does not match
-      // so if it's not false it will always be a string
-      if (result !== false) return result as string;
-    }
-
-    return undefined;
   }
 
   /**
@@ -426,10 +347,8 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
    * @param {SessionDataModel} sess
    * @returns {string}
    */
-  private hash(sess: Session) {
-    const data = sess.data();
-
-    const str = JSON.stringify(data);
+  private hash(sess: SessionModel) {
+    const str = JSON.stringify(sess.data);
 
     return crypto.createHash("sha256").update(str, "utf8").digest("hex");
   }
