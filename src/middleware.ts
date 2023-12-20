@@ -19,7 +19,8 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
   name: string;
   secret: string;
   store: StoreModel;
-  overwriteSession?: boolean;
+  overwriteSession: boolean;
+  saveInitialSession: boolean;
 
   /**
    * This is a hash of the session data that we get initially
@@ -56,6 +57,10 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
     this.name = this.opts.name || "session.sid";
     this.secret = this.opts.secret;
     this.store = this.opts.store || new MemoryStore();
+
+    if (this.opts.saveInitialSession === undefined)
+      this.saveInitialSession = true;
+    else this.saveInitialSession = this.opts.saveInitialSession;
 
     if (this.opts.overwriteSession === undefined) this.overwriteSession = false;
     else this.overwriteSession = this.opts.overwriteSession;
@@ -97,9 +102,7 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
      * On headers will be called when the response headers are being set. This is where we will
      * handle sending the cookie
      */
-    onHeaders(res, () => {
-      return this.handleOnHeaders(req, res);
-    });
+    onHeaders(res, this.handleOnHeaders(req, res));
 
     /**
      * We will try to get the session ID from the cookie. If it exists then we will try to get the
@@ -155,7 +158,12 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
     session.cookie = this.cookie;
     req.session = session;
 
-    if (!data)
+    /**
+     * If there is no existing data then it's a pretty safe bet that this is the first request of
+     * the session. Then we want to check for the saveInitialSession option and if it's true then
+     * we'll save the session to the database.
+     */
+    if (!data && this.saveInitialSession)
       // We're going to save our initial session to the database.
       req.session.save();
 
@@ -164,28 +172,57 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
   }
 
   /**
+   * This will handle regenerating the session. It will create a new session and
+   * delete the old one.
+   * @param {Request} req
+   */
+  private regenerateSession = async (req: Request) => {
+    // If we want to overwrite on regenerate then we need to destroy the existing session in the database
+    if (this.overwriteSession) req.session.destroy();
+
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    delete req.session;
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    delete req.sessionId;
+
+    await this.generateSession(req);
+  };
+
+  /**
+   * Generate a session ID for the session cookie.
+   * @returns {string}
+   */
+  private generateSessionID(): string {
+    return uuid();
+  }
+
+  /**
    * This will handle setting the cookie when the headers are being set.
    * @param {Request} req
    * @param {Response} res
    */
   private handleOnHeaders(req: Request, res: Response) {
-    /**
-     * At this point if we have no session then there's nothing to do
-     */
-    if (!req.session) return;
+    return () => {
+      /**
+       * At this point if we have no session then there's nothing to do
+       */
+      if (!req.session) return;
 
-    /**
-     * Grab the existing cookie options from the session
-     */
-    const sessionCookie = req.session.cookie as CookieModel;
+      /**
+       * Grab the existing cookie options from the session
+       */
+      const sessionCookie = req.session.cookie as CookieModel;
 
-    /**
-     * If the cookie is only meant to be used with HTTPS requests and
-     * we have a non-secure request then we don't want to set the cookie
-     */
-    if (sessionCookie.secure && !this.isSecureRequest(req)) return;
+      /**
+       * If the cookie is only meant to be used with HTTPS requests and
+       * we have a non-secure request then we don't want to set the cookie
+       */
+      if (sessionCookie.secure && !this.isSecureRequest(req)) return;
 
-    this.setCookie(req, res);
+      this.setCookie(req, res);
+    };
   }
 
   /**
@@ -208,14 +245,6 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
       return this.end?.apply(res, [chunk, encoding as BufferEncoding]);
     };
   };
-
-  /**
-   * Generate a session ID for the session cookie.
-   * @returns {string}
-   */
-  private generateSessionID(): string {
-    return uuid();
-  }
 
   /**
    * This will take a hash of the new session and compare it to the existing hash
@@ -266,25 +295,6 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
   }
 
   /**
-   * This will handle regenerating the session. It will create a new session and
-   * delete the old one.
-   * @param {Request} req
-   */
-  private regenerateSession = async (req: Request) => {
-    // If we want to overwrite on regenerate then we need to destroy the existing session in the database
-    if (this.overwriteSession) req.session.destroy();
-
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    delete req.session;
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    delete req.sessionId;
-
-    await this.generateSession(req);
-  };
-
-  /**
    * This function will retrieve the cookie from the request if
    * it exists.
    *
@@ -330,7 +340,8 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
   }
 
   /**
-   * Sets the cookie on the header
+   * Sets the cookie on the header. This will always sign the cookie with the secret.
+   * We will always sign the cookies.
    * @param {Request} req
    * @param {Response} res
    */

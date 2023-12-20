@@ -63,4 +63,12 @@ export interface MiddlewareOptionsModel {
    * @type {boolean}
    */
   overwriteSession?: boolean;
+  /**
+   * This will ensure that a session is saved to the database on the first request. This is useful if you want to
+   * ensure that a session is created for a user on their first request to the API.
+   * @optional
+   * @default true
+   * @type {boolean}
+   */
+  saveInitialSession?: boolean;
 }

@@ -1,5 +1,5 @@
-export type SameSiteType = boolean | 'lax' | 'strict' | 'none';
-export type SecureType = boolean | 'auto';
+export type SameSiteType = boolean | "lax" | "strict" | "none";
+export type SecureType = boolean | "auto";
 
 export interface CookieModel {
   /**
@@ -96,6 +96,6 @@ export const DefaultCookieOptions: CookieModel = {
   maxAge: 24 * 60 * 60 * 1000,
   httpOnly: false,
   secure: false,
-  sameSite: 'lax',
-  path: '/',
+  sameSite: "lax",
+  path: "/",
 };
