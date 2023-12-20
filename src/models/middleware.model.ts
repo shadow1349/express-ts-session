@@ -66,9 +66,19 @@ export interface MiddlewareOptionsModel {
   /**
    * This will ensure that a session is saved to the database on the first request. This is useful if you want to
    * ensure that a session is created for a user on their first request to the API.
+   *
    * @optional
    * @default true
    * @type {boolean}
    */
   saveInitialSession?: boolean;
+  /**
+   * The default behavior of the middleware is to only save the session to the database if it has been modified.
+   * If this is set to true then the session will be saved to the database on every request.
+   *
+   * @optional
+   * @default false
+   * @type {boolean}
+   */
+  saveUnchangedSession?: boolean;
 }

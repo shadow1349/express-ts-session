@@ -24,20 +24,20 @@ npm install express-ts-session
 There is no default export for express-ts-session, so when you use it you should import the ExpressTSSession class. Here is a very basic usage example:
 
 ```typescript
-import { ExpressTSSession, Cookie } from "express-ts-sesion";
+import { ExpressTSSession } from "express-ts-sesion";
 import express from 'express';
 
 const sessionMiddleware = new ExpressTSSession({
     name: "my-app"
     secret: "mysecret",
-    cookie: new Cookie({
+    cookie: {
         maxAge: 1000 * 60 * 60 * 24 * 7,
         secure: false,
         httpOnly: true,
         path: "/",
         sameSite: false,
         signed: true,
-    })
+    }
 });
 
 const app = express();
@@ -55,7 +55,7 @@ The middleware accepts a `Cookie` class as an option. See [Cookie Options](#cook
 
 ```typescript
 // this is the default cookie that will be created if none is passed in
-new Cookie({
+const cookie = {
   maxAge: 9000,
   signed: true,
   httpOnly: true,
@@ -63,7 +63,7 @@ new Cookie({
   secure: false,
   encode: encodeURIComponent,
   sameSite: false,
-});
+};
 ```
 
 **genid** - optional
@@ -101,7 +101,7 @@ The name of the session ID cookie to set in the response (and read from in the r
 Note if you have multiple apps running on the same hostname (this is just the name, i.e. `localhost` or `127.0.0.1`; different schemes and ports do not name a different hostname),
 then you need to separate the session cookies from each other. The simplest method is to simply set different names per app.
 
-The default is `connect.sid`.
+The default is `session.sid`.
 
 **proxy** - optional
 
@@ -111,36 +111,14 @@ Trust the reverse proxy when setting secure cookies (via the "X-Forwarded-Proto"
 - `false`: All headers are ignored and the connection is considered secure only if there is a direct TLS/SSL connection.
 - `default`: Uses the "trust proxy" setting from express
 
-**resave** - optional
+**saveUnchangedSession** - optional
 
 Forces the session to be saved back to the session store, even if the session was never modified during the request.
 Depending on your store this may be necessary, but it can also create race conditions where a client makes two parallel requests to your server and changes made to the session in one request may get overwritten when the other request ends, even if it made no changes (this behavior also depends on what store you're using).
 
-How do I know if this is necessary for my store? The best way to know is to check with your store if it implements the `touch` method.
-If it does, then you can safely set `resave: false`.
-If it does not implement the `touch` method and your store sets an expiration date on stored sessions, then you likely need `resave: true`.
+If it does, then you can safely set `saveUnchangedSession: false`.
 
-This will default to `true`.
-
-**rolling** - optional
-
-Force the session identifier cookie to be set on every response. The expiration is reset to the original `maxAge`, resetting the expiration countdown.
-
-The default value is `false`.
-
-With this enabled, the session identifier cookie will expire in `maxAge` _since the last response was sent_ instead of in `maxAge` _since the session was last modified by the server_.
-This is typically used in conjuction with short, non-session-length `maxAge` values to provide a quick timeout of the session data with reduced potential of it occurring during on going server interactions.
-
-Note that when this option is set to `true` but the `saveUninitialized` option is set to `false`, the cookie will not be set on a response with an uninitialized session.
-This option only modifies the behavior when an existing session was loaded for the request.
-
-**saveUninitialized** - optional
-
-Forces a session that is "uninitialized" to be saved to the store. A session is uninitialized when it is new but not modified.
-
-Choosing `false` is useful for implementing login sessions, reducing server storage usage, or complying with laws that require permission before setting a cookie.
-
-Choosing `false` will also help with race conditions where a client makes multiple parallel requests without a session.
+This will default to `false`.
 
 **secret - required**
 
@@ -163,14 +141,6 @@ In order to rotate the secret without invalidating sessions, provide an array of
 
 The session store instance, defaults to a new `MemoryStore` instance. Be careful, if you use a MemoryStore all your data will be completely lost if your server restarts. This makes MemoryStore not ideal for production use cases.
 
-**unset** - optional
-
-Control the result of unsetting req.session (through delete, setting to null, etc.).
-
-- `destroy`: The session will be destroyed (deleted) when the response ends.
-- `keep`: The session in the store will be kept, but modifications made during the request are ignored and not saved.
-
-This will default to `keep`.
 
 ## Cookie Options
 

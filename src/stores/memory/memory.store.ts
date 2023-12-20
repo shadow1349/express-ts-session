@@ -23,6 +23,6 @@ export class MemoryStore implements StoreModel {
   }
 
   clear() {
-    this.sessions = Object.create(null);
+    this.sessions = Object.create({});
   }
 }

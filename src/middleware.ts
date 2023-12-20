@@ -21,6 +21,7 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
   store: StoreModel;
   overwriteSession: boolean;
   saveInitialSession: boolean;
+  saveUnchangedSession: boolean;
 
   /**
    * This is a hash of the session data that we get initially
@@ -64,6 +65,10 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
 
     if (this.opts.overwriteSession === undefined) this.overwriteSession = false;
     else this.overwriteSession = this.opts.overwriteSession;
+
+    if (this.opts.saveUnchangedSession === undefined)
+      this.saveUnchangedSession = false;
+    else this.saveUnchangedSession = this.opts.saveUnchangedSession;
   }
 
   /**
@@ -256,6 +261,10 @@ export class ExpressTSSession implements MiddlewareOptionsModel {
     // If we don't have a session then there's nothing to do
     if (!req.session || !req.sessionId) return false;
 
+    // We will always want to save the sesion if this option is true
+    if (this.saveUnchangedSession) return true;
+
+    // If we get here then we want to create a hash of the session data and compare it to the existing hash
     const newHash = this.hash(req.session);
 
     if (newHash !== this.existingHash) return true;
